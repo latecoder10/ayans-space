@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --color-canvas: #06080C;
+  --color-chassis: #0B1017;
+  --color-chassis-elevated: #101722;
+  --color-chassis-active: #152030;
+
+  --color-border-dim: #121824;
+  --color-border-subtle: #161F2E;
+  --color-border-hover: #25354C;
+  --color-border-cyan: #00F2FE;
+
+  --color-signal-cyan: #00F2FE;
+  --color-signal-blue: #2563EB;
+  --color-signal-emerald: #10B981;
+  --color-signal-amber: #F59E0B;
+  --color-signal-rose: #F43F5E;
+
+  --color-text-bright: #F8FAFC;
+  --color-text-dim: #94A3B8;
+  --color-text-muted: #64748B;
+}
+
+@layer base {
+  :root {
+    --bg-canvas: #06080C;
+    --bg-chassis: #0B1017;
+    --border-subtle: #161F2E;
+    --border-active: #25354C;
+    --accent-cyan: #00F2FE;
+    --accent-blue: #2563EB;
+    --accent-emerald: #10B981;
+    --accent-amber: #F59E0B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+  }
+
+  html {
+    color-scheme: dark;
+    font-family: var(--font-body);
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    scroll-behavior: smooth;
+  }
+
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+  }
+}
+
+/* Custom Typography Utilities */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* Technical Grid & Background Patterns */
+.bg-tech-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(22, 31, 46, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(22, 31, 46, 0.4) 1px, transparent 1px);
+}
+
+.bg-tech-dots {
+  background-size: 28px 28px;
+  background-image: radial-gradient(circle, rgba(0, 242, 254, 0.12) 1px, transparent 1px);
+}
+
+@layer components {
+  /* Technical Chassis & Precision Panels */
+  .chassis-panel {
+    background-color: rgba(11, 16, 23, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    position: relative;
+  }
+
+  .chassis-panel-interactive {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .chassis-panel-interactive:hover {
+    border-color: var(--border-active);
+    background-color: rgba(16, 23, 34, 0.88);
+    box-shadow: 0 0 24px -6px rgba(0, 242, 254, 0.12);
+  }
+
+  /* Precision Crosshairs / Corner Marks */
+  .corner-bracket {
+    position: relative;
+  }
+
+  .corner-bracket::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: 7px;
+    height: 7px;
+    border-top: 1px solid var(--accent-cyan);
+    border-left: 1px solid var(--accent-cyan);
+    pointer-events: none;
+  }
+
+  .corner-bracket::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 7px;
+    height: 7px;
+    border-bottom: 1px solid var(--accent-cyan);
+    border-right: 1px solid var(--accent-cyan);
+    pointer-events: none;
+  }
+
+  /* Telemetry Badge */
+  .telemetry-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.55rem;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--border-subtle);
+    background-color: rgba(11, 16, 23, 0.7);
+    color: var(--text-secondary);
+  }
+
+  .telemetry-tag.active {
+    border-color: rgba(0, 242, 254, 0.45);
+    color: var(--accent-cyan);
+    background-color: rgba(0, 242, 254, 0.06);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-dot.active {
+    background-color: var(--accent-emerald);
+    box-shadow: 0 0 8px var(--accent-emerald);
+  }
+
+  .status-dot.warning {
+    background-color: var(--accent-amber);
+    box-shadow: 0 0 8px var(--accent-amber);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Custom Engineered Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #06080C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #161F2E;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #25354C;
+}
+
+/* Code Syntax & Log Blocks */
+pre, code {
+  font-family: var(--font-mono);
+}
