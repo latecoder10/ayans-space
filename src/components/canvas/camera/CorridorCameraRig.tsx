@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import { useScene } from '../../../context/SceneContext';
 import { SECTOR_BAYS, SectorBay } from '../../../types/spatial';
+import { soundEngine } from '../../../utils/synthesizer';
 
 export const CorridorCameraRig: React.FC = () => {
   const { camera } = useThree();
@@ -13,6 +14,8 @@ export const CorridorCameraRig: React.FC = () => {
     updateCameraZ,
     currentRoomId,
     closestBay,
+    castActiveSpell,
+    isEntranceIntroOpen,
   } = useScene();
 
   // Position references
@@ -31,8 +34,11 @@ export const CorridorCameraRig: React.FC = () => {
   const isDragging = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const touchStartPos = useRef({ x: 0, y: 0 });
+  const pointerStartTime = useRef(0);
+  const pointerStartCoord = useRef({ x: 0, y: 0 });
   const lastReportedZ = useRef(20);
   const activeBayRef = useRef<SectorBay | null>(null);
+  const walkTimer = useRef(0);
 
   // Keyboard navigation tracking
   const keysDown = useRef<Set<string>>(new Set());
@@ -138,6 +144,8 @@ export const CorridorCameraRig: React.FC = () => {
 
       isDragging.current = true;
       lastPointer.current = { x: e.clientX, y: e.clientY };
+      pointerStartTime.current = Date.now();
+      pointerStartCoord.current = { x: e.clientX, y: e.clientY };
       document.body.style.cursor = 'grabbing';
     };
 
@@ -156,10 +164,17 @@ export const CorridorCameraRig: React.FC = () => {
       targetPitch.current = Math.max(-0.55, Math.min(0.55, targetPitch.current));
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
       if (isDragging.current) {
         isDragging.current = false;
         document.body.style.cursor = 'auto';
+
+        const elapsed = Date.now() - pointerStartTime.current;
+        const dist = Math.hypot(e.clientX - pointerStartCoord.current.x, e.clientY - pointerStartCoord.current.y);
+        // Quick click without dragging casts the active spell!
+        if (elapsed < 280 && dist < 8 && !isEntranceIntroOpen) {
+          castActiveSpell();
+        }
       }
     };
 
@@ -367,8 +382,9 @@ export const CorridorCameraRig: React.FC = () => {
     const rightX = Math.cos(yaw.current);
     const rightZ = -Math.sin(yaw.current);
 
+    const isSprinting = keysDown.current.has('ShiftLeft') || keysDown.current.has('ShiftRight');
     // Consistent movement speed based on actual delta time
-    const moveSpeed = 11.0 * delta;
+    const moveSpeed = (isSprinting ? 16.0 : 10.5) * delta;
     let fwd = 0;
     let strafe = 0;
 
@@ -381,18 +397,24 @@ export const CorridorCameraRig: React.FC = () => {
     if (keysDown.current.has('ArrowLeft') || keysDown.current.has('KeyQ')) targetYaw.current += 1.8 * delta;
     if (keysDown.current.has('ArrowRight') || keysDown.current.has('KeyE')) targetYaw.current -= 1.8 * delta;
 
-    if (fwd !== 0 || strafe !== 0) {
+    const isMoving = fwd !== 0 || strafe !== 0;
+    if (isMoving) {
+      soundEngine.playStep(isSprinting);
+      walkTimer.current += delta * (isSprinting ? 12 : 8);
+
       if (mode === 'corridor') {
         targetPos.current.x += (fwdX * fwd + rightX * strafe) * moveSpeed;
         targetPos.current.z += (fwdZ * fwd + rightZ * strafe) * moveSpeed;
-        // Keep within corridor width bounds
+        // Keep within corridor width bounds and allow traversal forward to Castle Forecourt (Z = 35.5)
         targetPos.current.x = Math.max(-2.8, Math.min(2.8, targetPos.current.x));
-        targetPos.current.z = Math.max(-149.2, Math.min(22, targetPos.current.z));
+        targetPos.current.z = Math.max(-149.2, Math.min(35.5, targetPos.current.z));
       } else if (mode === 'room') {
         targetPos.current.x += (fwdX * fwd + rightX * strafe) * moveSpeed;
         targetPos.current.z += (fwdZ * fwd + rightZ * strafe) * moveSpeed;
         clampRoomPosition(targetPos.current, currentRoomId);
       }
+    } else {
+      walkTimer.current = THREE.MathUtils.lerp(walkTimer.current, 0, delta * 4);
     }
 
     // 2. Snappy, smooth rotation dampening without sluggish lag
@@ -405,6 +427,9 @@ export const CorridorCameraRig: React.FC = () => {
       const posLerp = Math.min(1, delta * 10);
       currentPos.current.lerp(targetPos.current, posLerp);
     }
+
+    // Organic first-person head bobbing inspired by hogwarts-3d/src/player.js
+    const headBob = Math.sin(walkTimer.current) * (isSprinting ? 0.03 : 0.018);
 
     // 4. Clean, level-headed viewing angles (NO erratic parallax or sudden head-jerking auto-glance)
     const effectiveYaw = yaw.current;
@@ -423,11 +448,15 @@ export const CorridorCameraRig: React.FC = () => {
     // 6. LookAt target forward along viewing direction using reusable vector (no GC stutter)
     lookTarget.current.set(
       currentPos.current.x + dirX * 10,
-      currentPos.current.y + dirY * 10,
+      currentPos.current.y + headBob + dirY * 10,
       currentPos.current.z + dirZ * 10
     );
 
-    camera.position.copy(currentPos.current);
+    camera.position.set(
+      currentPos.current.x,
+      currentPos.current.y + headBob,
+      currentPos.current.z
+    );
     camera.lookAt(lookTarget.current);
 
     // 7. Report Z position to context throttled to avoid React thrashing

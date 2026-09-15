@@ -10,15 +10,22 @@ import { GlobalDossierOverlay } from './components/dom/overlay/GlobalDossierOver
 import { HogwartsAboutModal } from './components/hogwarts/HogwartsAboutModal';
 import { OwlContactModal } from './components/hogwarts/OwlContactModal';
 import { LumosParticles } from './components/hogwarts/LumosParticles';
+import { HogwartsEntranceIntro } from './components/hogwarts/HogwartsEntranceIntro';
+import { SpellActionBar } from './components/dom/hud/SpellActionBar';
+import { KeyboardCheatsheetModal } from './components/dom/hud/KeyboardCheatsheetModal';
 import { SemanticA11yTree } from './components/dom/a11y/SemanticA11yTree';
 
 function AppContent() {
   const [aboutOpen, setAboutOpen] = useState<boolean>(false);
+  const [cheatsheetOpen, setCheatsheetOpen] = useState<boolean>(false);
   const [wandActive, setWandActive] = useState<boolean>(true);
   const { isContactModalOpen, openContactModal, closeContactModal } = useScene();
 
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden bg-[#14100C] text-[#F8FAFC] select-none">
+      {/* 0. Cinematic Hogwarts Castle Entrance Screen (hogwarts-entra inspired) */}
+      <HogwartsEntranceIntro />
+
       {/* 1. Wand Stardust & Ambient Golden Sparks */}
       <LumosParticles wandActive={wandActive} />
 
@@ -33,7 +40,7 @@ function AppContent() {
             toneMapping: THREE.ACESFilmicToneMapping,
             toneMappingExposure: 1.42,
           }}
-          camera={{ position: [0, 1.7, 20], fov: 60, near: 0.2, far: 240 }}
+          camera={{ position: [0, 1.7, 32], fov: 60, near: 0.2, far: 240 }}
           className="w-full h-full"
         >
           <Suspense fallback={null}>
@@ -46,30 +53,40 @@ function AppContent() {
       <TelemetryHUD
         onOpenAbout={() => setAboutOpen(true)}
         onOpenContact={openContactModal}
+        onOpenCheatsheet={() => setCheatsheetOpen(true)}
         lumosActive={wandActive}
         onToggleLumos={() => setWandActive((p) => !p)}
       />
 
-      {/* 4. The Marauder's Map / Quick Chamber Direct Warp Drawer */}
+      {/* 4. Bottom Quick Spell Action Bar (hogwarts-3d inspired) */}
+      <SpellActionBar />
+
+      {/* 5. The Marauder's Map / Quick Chamber Direct Warp Drawer */}
       <QuickTravelDrawer />
 
-      {/* 5. Deep Technical Dossier Grimoire Modal (Triggered by 3D Paintings & Chamber Lecterns) */}
+      {/* 6. Deep Technical Dossier Grimoire Modal (Triggered by 3D Paintings & Chamber Lecterns) */}
       <GlobalDossierOverlay />
 
-      {/* 6. About & Certified Architect Grimoire Modal */}
+      {/* 7. About & Certified Architect Grimoire Modal */}
       <HogwartsAboutModal
         isOpen={aboutOpen}
         onClose={() => setAboutOpen(false)}
         onOpenContact={openContactModal}
       />
 
-      {/* 7. Direct Communication Dispatch Modal */}
+      {/* 8. Direct Communication Dispatch Modal */}
       <OwlContactModal
         isOpen={isContactModalOpen}
         onClose={closeContactModal}
       />
 
-      {/* 8. Semantic Accessibility Tree for Assistive Devices & SEO */}
+      {/* 9. Controls & Keyboard Shortcuts Cheatsheet Guide */}
+      <KeyboardCheatsheetModal
+        isOpen={cheatsheetOpen}
+        onClose={() => setCheatsheetOpen(false)}
+      />
+
+      {/* 10. Semantic Accessibility Tree for Assistive Devices & SEO */}
       <SemanticA11yTree />
     </div>
   );

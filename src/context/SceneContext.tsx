@@ -3,6 +3,8 @@ import { SECTOR_BAYS, SectorBay, DossierContent } from '../types/spatial';
 import { soundEngine } from '../utils/synthesizer';
 
 export type SceneMode = 'corridor' | 'transitioning' | 'room';
+export type AtmosphereType = 'midnight' | 'twilight' | 'dawn';
+export type SpellType = 'lumos' | 'patronum' | 'alohomora' | 'leviosa';
 
 interface SceneContextType {
   mode: SceneMode;
@@ -17,6 +19,25 @@ interface SceneContextType {
   isQuickTravelOpen: boolean;
   isContactModalOpen: boolean;
   isAudioMuted: boolean;
+
+  // Hogwarts Gate & Entrance Flow (hogwarts-entra inspired)
+  isGateOpen: boolean;
+  isEntranceIntroOpen: boolean;
+  enterCastle: () => void;
+  skipEntrance: () => void;
+  returnToGate: () => void;
+
+  // Atmospheric Presets (hogwarts-3d inspired)
+  atmosphere: AtmosphereType;
+  cycleAtmosphere: () => void;
+  setAtmosphere: (atm: AtmosphereType) => void;
+
+  // Interactive Wand & Spells (hogwarts-3d inspired)
+  currentSpell: SpellType;
+  spellCastCount: number;
+  lastSpellPoint: [number, number, number] | null;
+  setCurrentSpell: (spell: SpellType) => void;
+  castActiveSpell: (point?: [number, number, number]) => void;
   
   // Actions
   setTargetZ: (z: number | ((prev: number) => number)) => void;
@@ -43,12 +64,17 @@ export const useScene = (): SceneContextType => {
 
 function getInitialSceneState() {
   if (typeof window === 'undefined') {
-    return { mode: 'corridor' as SceneMode, z: 20, roomId: null as string | null };
+    return { mode: 'corridor' as SceneMode, z: 32, roomId: null as string | null, isEntranceIntro: true, isGateOpen: false };
   }
   const params = new URLSearchParams(window.location.search);
   const zParam = params.get('z');
   const sectorParam = params.get('sector');
   const roomParam = params.get('room');
+  const introParam = params.get('intro');
+
+  if (introParam === '0' || introParam === 'false') {
+    return { mode: 'corridor' as SceneMode, z: 20, roomId: null, isEntranceIntro: false, isGateOpen: true };
+  }
 
   if (roomParam) {
     const bay = SECTOR_BAYS.find(
@@ -59,25 +85,25 @@ function getInitialSceneState() {
         b.code.toLowerCase() === roomParam.toLowerCase()
     );
     if (bay) {
-      return { mode: 'room' as SceneMode, z: bay.doorZ, roomId: bay.id };
+      return { mode: 'room' as SceneMode, z: bay.doorZ, roomId: bay.id, isEntranceIntro: false, isGateOpen: true };
     }
   }
 
   if (sectorParam) {
     const bay = SECTOR_BAYS.find((b) => b.id === sectorParam || b.code.toLowerCase() === sectorParam.toLowerCase());
     if (bay) {
-      return { mode: 'corridor' as SceneMode, z: bay.doorZ, roomId: null };
+      return { mode: 'corridor' as SceneMode, z: bay.doorZ, roomId: null, isEntranceIntro: false, isGateOpen: true };
     }
   }
 
   if (zParam) {
     const parsedZ = parseFloat(zParam);
     if (!isNaN(parsedZ)) {
-      return { mode: 'corridor' as SceneMode, z: parsedZ, roomId: null };
+      return { mode: 'corridor' as SceneMode, z: parsedZ, roomId: null, isEntranceIntro: false, isGateOpen: true };
     }
   }
 
-  return { mode: 'corridor' as SceneMode, z: 20, roomId: null };
+  return { mode: 'corridor' as SceneMode, z: 32, roomId: null, isEntranceIntro: true, isGateOpen: false };
 }
 
 export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -86,6 +112,19 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cameraZ, setCameraZ] = useState<number>(initial.z);
   const [targetZ, setTargetZState] = useState<number>(initial.z);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(initial.roomId);
+
+  // Entrance gate state (hogwarts-entra)
+  const [isGateOpen, setIsGateOpen] = useState<boolean>(initial.isGateOpen);
+  const [isEntranceIntroOpen, setIsEntranceIntroOpen] = useState<boolean>(initial.isEntranceIntro);
+
+  // Atmospheric presets (hogwarts-3d)
+  const [atmosphere, setAtmosphere] = useState<AtmosphereType>('midnight');
+
+  // Interactive Wand & Spells (hogwarts-3d)
+  const [currentSpell, setCurrentSpell] = useState<SpellType>('lumos');
+  const [spellCastCount, setSpellCastCount] = useState<number>(0);
+  const [lastSpellPoint, setLastSpellPoint] = useState<[number, number, number] | null>(null);
+
   const [overlayContent, setOverlayContent] = useState<DossierContent | null>(() => {
     if (typeof window === 'undefined') return null;
     const params = new URLSearchParams(window.location.search);
@@ -119,17 +158,74 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isContactModalOpen, setIsContactModalOpen] = useState<boolean>(false);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
 
-  // Helper to clamp target Z along corridor [ -155, 22 ]
+  // Helper to clamp target Z along corridor [ -155, 36 ] (36 = castle gates)
   const setTargetZ = useCallback((action: number | ((prev: number) => number)) => {
     setTargetZState((prev) => {
       const next = typeof action === 'function' ? action(prev) : action;
-      return Math.min(22, Math.max(-155, next));
+      return Math.min(36, Math.max(-155, next));
     });
   }, []);
 
   const updateCameraZ = useCallback((z: number) => {
     setCameraZ(z);
   }, []);
+
+  // Hogwarts Entrance Gate actions (hogwarts-entra inspired)
+  const enterCastle = useCallback(() => {
+    soundEngine.startAmbientWind();
+    soundEngine.playGateGroan();
+    setIsEntranceIntroOpen(false);
+    setIsGateOpen(true);
+
+    // Smoothly glide camera from gate (Z=32) into the Grand Corridor (Z=20)
+    setTimeout(() => {
+      setTargetZState(20);
+    }, 450);
+  }, []);
+
+  const skipEntrance = useCallback(() => {
+    soundEngine.startAmbientWind();
+    setIsEntranceIntroOpen(false);
+    setIsGateOpen(true);
+    setTargetZState(20);
+    setCameraZ(20);
+  }, []);
+
+  const returnToGate = useCallback(() => {
+    soundEngine.playParchment();
+    setIsGateOpen(false);
+    setIsEntranceIntroOpen(true);
+    setTargetZState(32);
+    setCameraZ(32);
+    setMode('corridor');
+    setCurrentRoomId(null);
+  }, []);
+
+  // Atmosphere actions
+  const cycleAtmosphere = useCallback(() => {
+    soundEngine.playSpellCast();
+    setAtmosphere((prev) => {
+      if (prev === 'midnight') return 'twilight';
+      if (prev === 'twilight') return 'dawn';
+      return 'midnight';
+    });
+  }, []);
+
+  // Spell actions
+  const castActiveSpell = useCallback((point?: [number, number, number]) => {
+    if (point) setLastSpellPoint(point);
+    setSpellCastCount((prev) => prev + 1);
+
+    if (currentSpell === 'lumos') {
+      soundEngine.playLumos();
+    } else if (currentSpell === 'patronum') {
+      soundEngine.playExpectoPatronum();
+    } else if (currentSpell === 'alohomora') {
+      soundEngine.playAlohomora();
+    } else if (currentSpell === 'leviosa') {
+      soundEngine.playLeviosa();
+    }
+  }, [currentSpell]);
 
   // Compute closest bay and distance
   const { closestBay, distanceToClosestBay } = useMemo(() => {
@@ -244,9 +340,18 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
 
-  // Keyboard Shortcuts (Escape to exit room or close overlay, 1-6 to warp)
+  // Keyboard Shortcuts (Escape, Cmd+K, T for atmosphere, 1-4 for spells, M for audio, G for gate)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when user is typing in form inputs
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (isContactModalOpen) {
           closeContactModal();
@@ -257,15 +362,47 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else if (isQuickTravelOpen) {
           setIsQuickTravelOpen(false);
         }
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         toggleQuickTravel();
+      } else if (e.key.toLowerCase() === 'j') {
+        toggleQuickTravel();
+      } else if (e.key.toLowerCase() === 't') {
+        cycleAtmosphere();
+      } else if (e.key.toLowerCase() === 'm') {
+        toggleAudio();
+      } else if (e.key.toLowerCase() === 'g') {
+        returnToGate();
+      } else if (e.key === '1') {
+        soundEngine.playClick(900);
+        setCurrentSpell('lumos');
+      } else if (e.key === '2') {
+        soundEngine.playClick(1050);
+        setCurrentSpell('patronum');
+      } else if (e.key === '3') {
+        soundEngine.playClick(1200);
+        setCurrentSpell('alohomora');
+      } else if (e.key === '4') {
+        soundEngine.playClick(1350);
+        setCurrentSpell('leviosa');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [overlayContent, mode, isQuickTravelOpen, isContactModalOpen, closeOverlay, exitRoom, toggleQuickTravel, closeContactModal]);
+  }, [
+    overlayContent,
+    mode,
+    isQuickTravelOpen,
+    isContactModalOpen,
+    closeOverlay,
+    exitRoom,
+    toggleQuickTravel,
+    closeContactModal,
+    cycleAtmosphere,
+    toggleAudio,
+    returnToGate,
+  ]);
 
   const value = useMemo(
     () => ({
@@ -281,6 +418,19 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isQuickTravelOpen,
       isContactModalOpen,
       isAudioMuted,
+      isGateOpen,
+      isEntranceIntroOpen,
+      enterCastle,
+      skipEntrance,
+      returnToGate,
+      atmosphere,
+      cycleAtmosphere,
+      setAtmosphere,
+      currentSpell,
+      spellCastCount,
+      lastSpellPoint,
+      setCurrentSpell,
+      castActiveSpell,
       setTargetZ,
       updateCameraZ,
       enterRoom,
@@ -307,6 +457,19 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isQuickTravelOpen,
       isContactModalOpen,
       isAudioMuted,
+      isGateOpen,
+      isEntranceIntroOpen,
+      enterCastle,
+      skipEntrance,
+      returnToGate,
+      atmosphere,
+      cycleAtmosphere,
+      setAtmosphere,
+      currentSpell,
+      spellCastCount,
+      lastSpellPoint,
+      setCurrentSpell,
+      castActiveSpell,
       setTargetZ,
       updateCameraZ,
       enterRoom,

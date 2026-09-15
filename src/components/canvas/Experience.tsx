@@ -1,6 +1,6 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
+import { useThree, useFrame } from '@react-three/fiber';
 import { CorridorCameraRig } from './camera/CorridorCameraRig';
 import { ArchitecturalCorridor } from './corridor/ArchitecturalCorridor';
 import { Room01_Systems } from './rooms/Room01_Systems';
@@ -9,6 +9,7 @@ import { Room03_Distributed } from './rooms/Room03_Distributed';
 import { Room04_Career } from './rooms/Room04_Career';
 import { Room05_Certification } from './rooms/Room05_Certification';
 import { Room06_Contact } from './rooms/Room06_Contact';
+import { useScene } from '../../context/SceneContext';
 
 const SceneInspector: React.FC = () => {
   const { scene, camera } = useThree();
@@ -21,7 +22,73 @@ const SceneInspector: React.FC = () => {
   return null;
 };
 
+// Dynamic Spell Cast Visual Effect
+const SpellBurstFX: React.FC = () => {
+  const { currentSpell, spellCastCount } = useScene();
+  const { camera } = useThree();
+  const lightRef = useRef<THREE.PointLight>(null);
+  const burstGroupRef = useRef<THREE.Group>(null);
+  const burstProgress = useRef(1);
+
+  useEffect(() => {
+    if (spellCastCount > 0) {
+      burstProgress.current = 0;
+      if (burstGroupRef.current) {
+        // Place burst slightly ahead of camera
+        const forward = new THREE.Vector3(0, 0, -2.5).applyQuaternion(camera.quaternion);
+        burstGroupRef.current.position.copy(camera.position).add(forward);
+      }
+    }
+  }, [spellCastCount, camera]);
+
+  useFrame((_, delta) => {
+    if (burstProgress.current < 1) {
+      burstProgress.current += delta * 2.5;
+      const t = Math.min(1, burstProgress.current);
+      const intensity = Math.sin(t * Math.PI) * 4.5;
+
+      if (lightRef.current) {
+        lightRef.current.intensity = intensity;
+      }
+      if (burstGroupRef.current) {
+        burstGroupRef.current.scale.setScalar(1 + t * 2.2);
+      }
+    } else if (lightRef.current && lightRef.current.intensity > 0) {
+      lightRef.current.intensity = 0;
+    }
+  });
+
+  const spellColor = useMemo(() => {
+    switch (currentSpell) {
+      case 'lumos':
+        return '#FDE047';
+      case 'patronum':
+        return '#93C5FD';
+      case 'alohomora':
+        return '#F59E0B';
+      case 'leviosa':
+        return '#C084FC';
+      default:
+        return '#FDE047';
+    }
+  }, [currentSpell]);
+
+  return (
+    <group ref={burstGroupRef}>
+      <pointLight ref={lightRef} color={spellColor} distance={18} intensity={0} />
+      {burstProgress.current < 1 && (
+        <mesh>
+          <sphereGeometry args={[0.25, 12, 12]} />
+          <meshBasicMaterial color={spellColor} transparent opacity={(1 - burstProgress.current) * 0.75} />
+        </mesh>
+      )}
+    </group>
+  );
+};
+
 export const Experience: React.FC = () => {
+  const { atmosphere } = useScene();
+
   // Magical stardust motes floating through the Hogwarts castle corridor
   const particleGeo = useMemo(() => {
     const count = 350;
@@ -44,25 +111,77 @@ export const Experience: React.FC = () => {
     return geo;
   }, []);
 
+  // Atmosphere lighting configurations inspired by hogwarts-3d/src/sky.js
+  const lighting = useMemo(() => {
+    if (atmosphere === 'twilight') {
+      return {
+        fogColor: '#24170E',
+        fogNear: 42,
+        fogFar: 200,
+        hemiSky: '#FFD199',
+        hemiGround: '#3D2619',
+        hemiIntensity: 1.05,
+        ambientColor: '#FFAF52',
+        ambientIntensity: 1.25,
+        dirPos: [15, 20, 25] as [number, number, number],
+        dirColor: '#FF8C42',
+        dirIntensity: 1.65,
+        particleColor: '#FBBF24',
+      };
+    }
+    if (atmosphere === 'dawn') {
+      return {
+        fogColor: '#141D24',
+        fogNear: 46,
+        fogFar: 210,
+        hemiSky: '#DCEEFA',
+        hemiGround: '#232E38',
+        hemiIntensity: 0.95,
+        ambientColor: '#BEE3F8',
+        ambientIntensity: 1.05,
+        dirPos: [-12, 24, 18] as [number, number, number],
+        dirColor: '#EBF8FF',
+        dirIntensity: 1.35,
+        particleColor: '#93C5FD',
+      };
+    }
+    // Default: Midnight Lumos
+    return {
+      fogColor: '#0E0C09',
+      fogNear: 40,
+      fogFar: 185,
+      hemiSky: '#FFF6DF',
+      hemiGround: '#261C14',
+      hemiIntensity: 0.85,
+      ambientColor: '#FFE6AC',
+      ambientIntensity: 1.1,
+      dirPos: [10, 22, 16] as [number, number, number],
+      dirColor: '#FFF8E7',
+      dirIntensity: 1.25,
+      particleColor: '#FFD166',
+    };
+  }, [atmosphere]);
+
   return (
     <>
       {/* Smooth Camera Controller & Traversal Rig */}
       <CorridorCameraRig />
       <SceneInspector />
+      <SpellBurstFX />
 
-      {/* Atmospheric Castle Fog (Soft Warm Twilight Falloff, pushed back for great visibility) */}
-      <fog attach="fog" args={['#1A1612', 48, 210]} />
+      {/* Atmospheric Castle Fog */}
+      <fog attach="fog" args={[lighting.fogColor, lighting.fogNear, lighting.fogFar]} />
 
-      {/* Global Magical Lighting (Illuminating shadows with warm architectural clarity) */}
-      <hemisphereLight args={['#FFF6DF', '#30271E', 0.9]} />
-      <ambientLight intensity={1.15} color="#FFE6AC" />
-      <directionalLight position={[10, 22, 16]} intensity={1.35} color="#FFF8E7" />
-      <directionalLight position={[-10, 16, -30]} intensity={0.75} color="#A5C4F7" />
-      <directionalLight position={[0, 14, -85]} intensity={0.65} color="#FED7AA" />
+      {/* Global Magical Lighting */}
+      <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, lighting.hemiIntensity]} />
+      <ambientLight intensity={lighting.ambientIntensity} color={lighting.ambientColor} />
+      <directionalLight position={lighting.dirPos} intensity={lighting.dirIntensity} color={lighting.dirColor} />
+      <directionalLight position={[-10, 16, -30]} intensity={0.65} color="#A5C4F7" />
+      <directionalLight position={[0, 14, -85]} intensity={0.55} color="#FED7AA" />
 
-      {/* Floating Golden Stardust Motes */}
+      {/* Floating Stardust Motes */}
       <points geometry={particleGeo}>
-        <pointsMaterial size={0.045} color="#FFD166" transparent opacity={0.55} />
+        <pointsMaterial size={0.045} color={lighting.particleColor} transparent opacity={0.6} />
       </points>
 
       {/* Grand Hogwarts Architectural Corridor & Doorways */}

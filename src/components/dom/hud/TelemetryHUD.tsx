@@ -1,5 +1,22 @@
 import React from 'react';
-import { Volume2, VolumeX, Compass, MapPin, ArrowLeft, Wand2, FileText, Send, User, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  Compass,
+  MapPin,
+  ArrowLeft,
+  Wand2,
+  FileText,
+  Send,
+  User,
+  ChevronUp,
+  ChevronDown,
+  Sun,
+  Moon,
+  Sparkles,
+  HelpCircle,
+  Shield,
+} from 'lucide-react';
 import { useScene } from '../../../context/SceneContext';
 import { SECTOR_BAYS } from '../../../types/spatial';
 import { soundEngine } from '../../../utils/synthesizer';
@@ -7,6 +24,7 @@ import { soundEngine } from '../../../utils/synthesizer';
 interface TelemetryHUDProps {
   onOpenAbout?: () => void;
   onOpenContact?: () => void;
+  onOpenCheatsheet?: () => void;
   lumosActive?: boolean;
   onToggleLumos?: () => void;
 }
@@ -14,6 +32,7 @@ interface TelemetryHUDProps {
 export const TelemetryHUD: React.FC<TelemetryHUDProps> = ({
   onOpenAbout,
   onOpenContact,
+  onOpenCheatsheet,
   lumosActive = true,
   onToggleLumos,
 }) => {
@@ -28,6 +47,9 @@ export const TelemetryHUD: React.FC<TelemetryHUDProps> = ({
     isAudioMuted,
     setTargetZ,
     enterRoom,
+    atmosphere,
+    cycleAtmosphere,
+    returnToGate,
   } = useScene();
 
   const isRoomMode = mode === 'room' || (mode === 'transitioning' && !!currentRoomId);
@@ -148,13 +170,51 @@ export const TelemetryHUD: React.FC<TelemetryHUDProps> = ({
             </button>
           )}
 
+          {/* Atmosphere Preset Toggle (Midnight / Twilight / Dawn) */}
+          <button
+            onClick={() => cycleAtmosphere()}
+            className="flex items-center gap-1 text-xs bg-[#1A140E]/90 hover:bg-[#2A2016] text-[#E6D5AC] hover:text-[#FDE047] px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#D4AF37]/30 hover:border-[#D4AF37] transition-all shadow-md cursor-pointer"
+            title={`Atmosphere: ${atmosphere.toUpperCase()} (Press T)`}
+          >
+            {atmosphere === 'midnight' && <Moon className="w-3.5 h-3.5 text-[#93C5FD]" />}
+            {atmosphere === 'twilight' && <Sun className="w-3.5 h-3.5 text-[#F59E0B]" />}
+            {atmosphere === 'dawn' && <Sparkles className="w-3.5 h-3.5 text-[#6EE7B7]" />}
+            <span className="hidden xl:inline font-serif font-medium uppercase text-[11px]">{atmosphere}</span>
+            <kbd className="text-[9px] bg-[#2A2016] px-1 py-0.5 rounded text-[#C4B087] font-mono hidden sm:inline">T</kbd>
+          </button>
+
+          {/* Castle Gates Return */}
+          <button
+            onClick={() => returnToGate()}
+            className="p-1.5 rounded-lg bg-[#1A140E]/90 hover:bg-[#2A2016] text-[#E6D5AC] hover:text-[#FDE047] border border-[#D4AF37]/30 transition-all cursor-pointer hidden md:flex items-center gap-1 text-xs"
+            title="Return to Castle Entrance Gates (Press G)"
+          >
+            <Shield className="w-3.5 h-3.5 text-[#F5D77F]" />
+            <span className="hidden lg:inline font-serif font-medium">GATES</span>
+            <kbd className="text-[9px] bg-[#2A2016] px-1 py-0.5 rounded text-[#C4B087] font-mono">G</kbd>
+          </button>
+
+          {/* Controls Cheatsheet Modal */}
+          {onOpenCheatsheet && (
+            <button
+              onClick={() => {
+                soundEngine.playHover();
+                onOpenCheatsheet();
+              }}
+              className="p-1.5 rounded-lg bg-[#1A140E]/90 hover:bg-[#2A2016] text-[#E6D5AC] hover:text-[#FDE047] border border-[#D4AF37]/30 transition-all cursor-pointer hidden sm:block"
+              title="Controls & Navigation Guide"
+            >
+              <HelpCircle className="w-4 h-4 text-[#F5D77F]" />
+            </button>
+          )}
+
           {/* Spell Audio Toggle */}
           <button
             onClick={() => {
               toggleAudio();
             }}
             className="p-1.5 rounded-lg bg-[#1A140E]/90 hover:bg-[#2A2016] text-[#E6D5AC] hover:text-[#FDE047] border border-[#D4AF37]/30 transition-all cursor-pointer"
-            title={isAudioMuted ? 'Unmute Spell Effects' : 'Mute Spell Effects'}
+            title={isAudioMuted ? 'Unmute Sound Synthesizer (M)' : 'Mute Sound Synthesizer (M)'}
           >
             {isAudioMuted ? (
               <VolumeX className="w-4 h-4 text-amber-600" />

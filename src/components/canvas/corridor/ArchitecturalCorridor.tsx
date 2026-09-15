@@ -5,6 +5,7 @@ import { DoorwayBay } from './DoorwayBay';
 import { FloatingCandleCluster, WallTorch } from '../common/HogwartsLighting';
 import { CorridorPainting } from '../common/CorridorPainting';
 import { HouseBanner } from '../common/HouseBanner';
+import { CastleEntranceGate } from '../../hogwarts/CastleEntranceGate';
 import { useScene } from '../../../context/SceneContext';
 import { CASE_STUDIES } from '../../../data/caseStudies';
 import { DossierContent } from '../../../types/spatial';
@@ -366,7 +367,10 @@ export const ArchitecturalCorridor: React.FC = () => {
       <HouseBanner position={[-3.8, 1.8, -44]} rotationY={Math.PI / 2} house="slytherin" />
       <HouseBanner position={[3.8, 1.8, -72]} rotationY={-Math.PI / 2} house="hufflepuff" />
 
-      {/* 9. Entrance Archway at Corridor Start (Z = 21.5) */}
+      {/* 9. Grand Gothic Castle Iron Gate & Approach Forecourt (Z = 24m) */}
+      <CastleEntranceGate />
+
+      {/* 9.1 Entrance Archway at Corridor Start (Z = 21.5) */}
       <group position={[0, 2.4, 21.5]}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[7.6, 0.45, 0.5]} />

@@ -3,6 +3,10 @@
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
+  private ambientGain: GainNode | null = null;
+  private ambientNoiseSource: AudioBufferSourceNode | null = null;
+  private isAmbientRunning: boolean = false;
+  private lastStepTime: number = 0;
 
   private init() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -16,10 +20,62 @@ class SoundEngine {
 
   public setEnabled(enabled: boolean) {
     this.enabled = enabled;
+    if (this.ambientGain && this.ctx) {
+      this.ambientGain.gain.setTargetAtTime(enabled ? 0.04 : 0, this.ctx.currentTime, 0.2);
+    }
   }
 
   public isEnabled(): boolean {
     return this.enabled;
+  }
+
+  // Continuous procedural castle wind draft inspired by hogwarts-3d/src/audio.js
+  public startAmbientWind() {
+    if (!this.enabled || this.isAmbientRunning || typeof window === 'undefined') return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const sampleRate = this.ctx.sampleRate;
+      const bufferLength = sampleRate * 3;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferLength, sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferLength; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      const noiseSource = this.ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+
+      const bandpass = this.ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.value = 340;
+      bandpass.Q.value = 0.8;
+
+      const gain = this.ctx.createGain();
+      gain.gain.value = this.enabled ? 0.035 : 0;
+
+      // Slow LFO for gentle atmospheric breathing / draft
+      const lfo = this.ctx.createOscillator();
+      lfo.frequency.value = 0.08;
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = 0.015;
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain);
+      lfo.start();
+
+      noiseSource.connect(bandpass);
+      bandpass.connect(gain);
+      gain.connect(this.ctx.destination);
+      noiseSource.start();
+
+      this.ambientGain = gain;
+      this.ambientNoiseSource = noiseSource;
+      this.isAmbientRunning = true;
+    } catch {
+      // Audio autoplay policy fallback
+    }
   }
 
   // Subtle metallic / electronic click
@@ -325,6 +381,198 @@ class SoundEngine {
       filter.connect(this.ctx.destination);
 
       whiteNoise.start();
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Heavy medieval iron gate creak & groan inspired by hogwarts-entra
+  public playGateGroan() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const t = this.ctx.currentTime;
+      // Low resonant iron vibration
+      const osc1 = this.ctx.createOscillator();
+      const osc2 = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc1.type = 'sawtooth';
+      osc2.type = 'triangle';
+
+      osc1.frequency.setValueAtTime(55, t);
+      osc1.frequency.exponentialRampToValueAtTime(75, t + 1.2);
+      osc1.frequency.exponentialRampToValueAtTime(45, t + 2.5);
+
+      osc2.frequency.setValueAtTime(110, t);
+      osc2.frequency.exponentialRampToValueAtTime(145, t + 1.0);
+      osc2.frequency.exponentialRampToValueAtTime(90, t + 2.5);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(280, t);
+      filter.frequency.exponentialRampToValueAtTime(450, t + 1.2);
+      filter.frequency.exponentialRampToValueAtTime(180, t + 2.5);
+
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.exponentialRampToValueAtTime(0.05, t + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.035, t + 1.8);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc1.start(t);
+      osc2.start(t);
+      osc1.stop(t + 2.8);
+      osc2.stop(t + 2.8);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Stone floor corridor footsteps inspired by hogwarts-3d/src/audio.js
+  public playStep(sprinting = false) {
+    if (!this.enabled) return;
+    const now = Date.now();
+    const interval = sprinting ? 240 : 380;
+    if (now - this.lastStepTime < interval) return;
+    this.lastStepTime = now;
+
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const t = this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 520 + Math.random() * 180;
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(sprinting ? 0.045 : 0.028, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      noise.start(t);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Expecto Patronum silver choir & harmonic chord inspired by hogwarts-3d
+  public playExpectoPatronum() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const chords = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // C Major majestic silver chords
+      chords.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = this.ctx.currentTime + idx * 0.06;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.02, startTime + 1.2);
+
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.028, startTime + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.4);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 1.4);
+      });
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Wingardium Leviosa mystical floating hum
+  public playLeviosa() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, t);
+      osc.frequency.exponentialRampToValueAtTime(640, t + 0.4);
+      osc.frequency.exponentialRampToValueAtTime(480, t + 0.8);
+
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.exponentialRampToValueAtTime(0.035, t + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.85);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Incendio flame whoosh
+  public playIncendio() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const t = this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.35);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(380, t);
+      filter.frequency.exponentialRampToValueAtTime(720, t + 0.18);
+      filter.frequency.exponentialRampToValueAtTime(240, t + 0.35);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.exponentialRampToValueAtTime(0.06, t + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      noise.start(t);
     } catch {
       // Ignore
     }
