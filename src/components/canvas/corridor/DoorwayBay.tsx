@@ -11,12 +11,13 @@ interface DoorwayBayProps {
 }
 
 export const DoorwayBay: React.FC<DoorwayBayProps> = ({ bay }) => {
-  const { enterRoom, closestBay, distanceToClosestBay, mode } = useScene();
+  const { enterRoom, closestBay, distanceToClosestBay, mode, currentRoomId } = useScene();
   const [hovered, setHovered] = useState(false);
 
-  const leftDoorRef = useRef<THREE.Mesh>(null);
-  const rightDoorRef = useRef<THREE.Mesh>(null);
+  const leftDoorHingeRef = useRef<THREE.Group>(null);
+  const rightDoorHingeRef = useRef<THREE.Group>(null);
   const glowLightRef = useRef<THREE.PointLight>(null);
+  const runeRef = useRef<THREE.Mesh>(null);
   const wasNearby = useRef(false);
 
   const isNearby = closestBay?.id === bay.id && distanceToClosestBay < 6;
@@ -26,7 +27,7 @@ export const DoorwayBay: React.FC<DoorwayBayProps> = ({ bay }) => {
 
   useEffect(() => {
     if (isNearby && !wasNearby.current && mode === 'corridor') {
-      soundEngine.playDoorSlide();
+      soundEngine.playAlohomora();
     }
     wasNearby.current = isNearby;
   }, [isNearby, mode]);
@@ -49,25 +50,33 @@ export const DoorwayBay: React.FC<DoorwayBayProps> = ({ bay }) => {
   };
 
   // Bay Position in Corridor Coordinates
-  const posX = isLeft ? -3.6 : isRight ? 3.6 : 0;
+  const posX = isLeft ? -3.65 : isRight ? 3.65 : 0;
   const posY = 0;
   const posZ = bay.doorZ;
   const rotY = isLeft ? Math.PI / 2 : isRight ? -Math.PI / 2 : 0;
 
-  // Animate door slide when nearby or hovered
-  useFrame(() => {
-    const targetSlide = isNearby || hovered ? 0.8 : 0; // Doors part open when approaching
+  // Animate medieval door swing when nearby, hovered, or inside this chamber
+  useFrame((_, delta) => {
+    const isInsideThisRoom = currentRoomId === bay.id;
+    const targetAngle = isNearby || hovered || isInsideThisRoom ? Math.PI * 0.45 : 0;
 
-    if (leftDoorRef.current) {
-      leftDoorRef.current.position.x += ((-0.75 - targetSlide) - leftDoorRef.current.position.x) * 0.1;
+    if (leftDoorHingeRef.current) {
+      leftDoorHingeRef.current.rotation.y +=
+        (-targetAngle - leftDoorHingeRef.current.rotation.y) * 0.08;
     }
-    if (rightDoorRef.current) {
-      rightDoorRef.current.position.x += ((0.75 + targetSlide) - rightDoorRef.current.position.x) * 0.1;
+    if (rightDoorHingeRef.current) {
+      rightDoorHingeRef.current.rotation.y +=
+        (targetAngle - rightDoorHingeRef.current.rotation.y) * 0.08;
     }
 
     if (glowLightRef.current) {
-      const targetIntensity = hovered ? 4 : isNearby ? 2.5 : 0.8;
-      glowLightRef.current.intensity += (targetIntensity - glowLightRef.current.intensity) * 0.1;
+      const targetIntensity = hovered ? 3.5 : isNearby ? 2.5 : 1.0;
+      glowLightRef.current.intensity +=
+        (targetIntensity - glowLightRef.current.intensity) * 0.1;
+    }
+
+    if (runeRef.current) {
+      runeRef.current.rotation.z += delta * 0.8;
     }
   });
 
@@ -75,171 +84,278 @@ export const DoorwayBay: React.FC<DoorwayBayProps> = ({ bay }) => {
     if (e.delta && e.delta > 8) return;
     e.stopPropagation();
     if (mode === 'corridor') {
+      soundEngine.playAlohomora();
       enterRoom(bay.id);
     }
   };
 
   if (isCenter) {
-    // Terminal Horizon Portal for Contact Room
+    // Grand Panoramic Gateway to the Contact Horizon Platform
     return (
       <group position={[0, posY, posZ]}>
-        {/* Arch Frame */}
-        <mesh position={[0, 2.5, 0]}>
-          <boxGeometry args={[8, 0.4, 0.6]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.8} roughness={0.2} />
+        {/* Stone Gothic Arch Portal Frame */}
+        <mesh position={[0, 2.9, 0]}>
+          <boxGeometry args={[8.4, 0.6, 0.8]} />
+          <meshStandardMaterial color="#221B14" roughness={0.8} metalness={0.2} />
         </mesh>
-        <mesh position={[-3.8, 1.25, 0]}>
-          <boxGeometry args={[0.4, 2.5, 0.6]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.8} roughness={0.2} />
+        <mesh position={[-3.85, 1.45, 0]}>
+          <boxGeometry args={[0.6, 2.9, 0.8]} />
+          <meshStandardMaterial color="#221B14" roughness={0.8} metalness={0.2} />
         </mesh>
-        <mesh position={[3.8, 1.25, 0]}>
-          <boxGeometry args={[0.4, 2.5, 0.6]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.8} roughness={0.2} />
+        <mesh position={[3.85, 1.45, 0]}>
+          <boxGeometry args={[0.6, 2.9, 0.8]} />
+          <meshStandardMaterial color="#221B14" roughness={0.8} metalness={0.2} />
         </mesh>
 
-        {/* Portal Telemetry Sign */}
-        <group position={[0, 2.9, 0.35]}>
+        {/* Gold Arch Keystone Accent */}
+        <mesh position={[0, 3.25, 0.1]}>
+          <boxGeometry args={[0.8, 0.45, 0.65]} />
+          <meshStandardMaterial color="#D4AF37" roughness={0.4} metalness={0.8} />
+        </mesh>
+
+        {/* Portal Ornate Plaque */}
+        <group position={[0, 3.4, 0.45]}>
           <mesh>
-            <planeGeometry args={[4.2, 0.5]} />
-            <meshBasicMaterial color="#0A0F1D" />
+            <planeGeometry args={[5.8, 0.7]} />
+            <meshStandardMaterial color="#1A120B" roughness={0.7} metalness={0.5} />
           </mesh>
           <Text
-            position={[0, 0, 0.01]}
+            position={[0, 0.1, 0.02]}
             fontSize={0.22}
-            color={bay.doorColor}
+            color="#FDE047"
             anchorX="center"
             anchorY="middle"
           >
-            {`${bay.code} // ${bay.title.toUpperCase()}`}
+            {`✦ ${bay.code} · ${bay.title.toUpperCase()} ✦`}
+          </Text>
+          <Text
+            position={[0, -0.15, 0.02]}
+            fontSize={0.11}
+            color="#E2E8F0"
+            anchorX="center"
+            anchorY="middle"
+          >
+            {bay.subtitle.toUpperCase()}
           </Text>
         </group>
 
-        {/* Luminous Threshold Trigger */}
+        {/* Golden Threshold Line on Floor */}
+        <mesh position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[7.2, 0.35]} />
+          <meshBasicMaterial color="#F59E0B" transparent opacity={hovered ? 0.85 : 0.4} />
+        </mesh>
+
+        {/* Unobstructed Clickable Gateway Trigger (Keeps view into horizon clear!) */}
         <mesh
           position={[0, 1.4, 0]}
           onClick={handleClick}
           onPointerOver={handlePointerOver}
           onPointerOut={handlePointerOut}
         >
-          <planeGeometry args={[6.5, 2.8]} />
-          <meshBasicMaterial color={bay.doorColor} transparent opacity={hovered ? 0.25 : 0.08} />
+          <planeGeometry args={[7.0, 2.8]} />
+          <meshBasicMaterial color="#F59E0B" transparent opacity={hovered ? 0.12 : 0.0} depthWrite={false} />
         </mesh>
 
-        <pointLight ref={glowLightRef} position={[0, 2.5, -1]} color={bay.doorColor} distance={10} intensity={2} />
+        {/* Interactive Prompt Hint */}
+        {(isNearby || hovered) && (
+          <>
+            <group
+              position={[0, 1.6, 0.6]}
+              onClick={handleClick}
+              onPointerOver={handlePointerOver}
+              onPointerOut={handlePointerOut}
+            >
+              <mesh>
+                <planeGeometry args={[4.4, 0.55]} />
+                <meshBasicMaterial color="#0E0C0A" transparent opacity={0.9} />
+              </mesh>
+              {/* Outer Gold Trim */}
+              <mesh position={[0, 0, 0.005]}>
+                <ringGeometry args={[2.0, 2.05, 4]} />
+                <meshBasicMaterial color="#D4AF37" />
+              </mesh>
+              <Text
+                position={[0, 0, 0.02]}
+                fontSize={0.16}
+                color="#FDE047"
+                anchorX="center"
+                anchorY="middle"
+              >
+                ✦ [ STEP ONTO CONTACT HORIZON PLATFORM ] ✦
+              </Text>
+            </group>
+
+            <pointLight
+              ref={glowLightRef}
+              position={[0, 2.5, -0.5]}
+              color="#F59E0B"
+              distance={12}
+              intensity={hovered ? 3.0 : 1.8}
+            />
+          </>
+        )}
       </group>
     );
   }
 
   return (
     <group position={[posX, posY, posZ]} rotation={[0, rotY, 0]}>
-      {/* Outer Doorway Wall Frame (Sawtooth Alcove Entrance) */}
-      <mesh position={[0, 2.6, 0]}>
-        <boxGeometry args={[3.6, 0.4, 0.5]} />
-        <meshStandardMaterial color="#161F30" metalness={0.8} roughness={0.3} />
+      {/* 1. Outer Stone Arch Alcove */}
+      <mesh position={[0, 2.7, 0]}>
+        <boxGeometry args={[3.8, 0.5, 0.6]} />
+        <meshStandardMaterial color="#221C16" roughness={0.85} metalness={0.2} />
       </mesh>
-      <mesh position={[-1.7, 1.2, 0]}>
-        <boxGeometry args={[0.4, 2.4, 0.5]} />
-        <meshStandardMaterial color="#161F30" metalness={0.8} roughness={0.3} />
+      <mesh position={[-1.8, 1.35, 0]}>
+        <boxGeometry args={[0.45, 2.7, 0.6]} />
+        <meshStandardMaterial color="#221C16" roughness={0.85} metalness={0.2} />
       </mesh>
-      <mesh position={[1.7, 1.2, 0]}>
-        <boxGeometry args={[0.4, 2.4, 0.5]} />
-        <meshStandardMaterial color="#161F30" metalness={0.8} roughness={0.3} />
+      <mesh position={[1.8, 1.35, 0]}>
+        <boxGeometry args={[0.45, 2.7, 0.6]} />
+        <meshStandardMaterial color="#221C16" roughness={0.85} metalness={0.2} />
       </mesh>
 
-      {/* Sector Signboard Plaque */}
-      <group position={[0, 3.0, 0.28]}>
+      {/* 2. Carved Chamber Header Plaque */}
+      <group position={[0, 3.15, 0.32]}>
         <mesh>
-          <planeGeometry args={[3.2, 0.42]} />
-          <meshBasicMaterial color="#090E17" />
+          <planeGeometry args={[3.4, 0.45]} />
+          <meshStandardMaterial color="#1E140C" roughness={0.6} metalness={0.4} />
         </mesh>
         <Text
-          position={[0, 0, 0.01]}
-          fontSize={0.16}
-          color={bay.doorColor}
+          position={[0, 0.05, 0.01]}
+          fontSize={0.15}
+          color="#FDE047"
           anchorX="center"
           anchorY="middle"
         >
-          {`${bay.code} // ${bay.title}`}
+          {`${bay.code} · ${bay.title}`}
+        </Text>
+        <Text
+          position={[0, -0.12, 0.01]}
+          fontSize={0.08}
+          color="#E2E8F0"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {bay.subtitle}
         </Text>
       </group>
 
-      {/* Physical Sliding Doors */}
-      <group position={[0, 1.2, 0]}>
-        {/* Left Door Leaf */}
-        <mesh
-          ref={leftDoorRef}
-          position={[-0.75, 0, 0]}
-          onClick={handleClick}
-          onPointerOver={handlePointerOver}
-          onPointerOut={handlePointerOut}
-        >
-          <boxGeometry args={[1.45, 2.35, 0.15]} />
-          <meshStandardMaterial
-            color="#0D1522"
-            metalness={0.85}
-            roughness={0.25}
-            emissive={bay.doorColor}
-            emissiveIntensity={hovered ? 0.3 : 0.05}
-          />
-        </mesh>
+      {/* 3. Medieval Dark Oak Double Doors with Iron Straps */}
+      <group position={[0, 0, 0]}>
+        {/* Left Door Leaf with Hinge at X = -1.5 */}
+        <group ref={leftDoorHingeRef} position={[-1.5, 0, 0]}>
+          <mesh
+            position={[0.72, 1.25, 0]}
+            onClick={handleClick}
+            onPointerOver={handlePointerOver}
+            onPointerOut={handlePointerOut}
+          >
+            <boxGeometry args={[1.45, 2.45, 0.12]} />
+            <meshStandardMaterial
+              color="#2B1A10"
+              roughness={0.8}
+              metalness={0.1}
+            />
+          </mesh>
 
-        {/* Right Door Leaf */}
-        <mesh
-          ref={rightDoorRef}
-          position={[0.75, 0, 0]}
-          onClick={handleClick}
-          onPointerOver={handlePointerOver}
-          onPointerOut={handlePointerOut}
-        >
-          <boxGeometry args={[1.45, 2.35, 0.15]} />
-          <meshStandardMaterial
-            color="#0D1522"
-            metalness={0.85}
-            roughness={0.25}
-            emissive={bay.doorColor}
-            emissiveIntensity={hovered ? 0.3 : 0.05}
-          />
-        </mesh>
+          {/* Left Door Wrought Iron Straps */}
+          <mesh position={[0.72, 1.9, 0.065]}>
+            <boxGeometry args={[1.4, 0.08, 0.02]} />
+            <meshStandardMaterial color="#1E1E1E" metalness={0.85} roughness={0.3} />
+          </mesh>
+          <mesh position={[0.72, 0.6, 0.065]}>
+            <boxGeometry args={[1.4, 0.08, 0.02]} />
+            <meshStandardMaterial color="#1E1E1E" metalness={0.85} roughness={0.3} />
+          </mesh>
 
-        {/* Central Luminous Seam Light */}
-        <mesh position={[0, 0, 0.08]}>
-          <boxGeometry args={[0.04, 2.3, 0.02]} />
-          <meshBasicMaterial color={bay.doorColor} />
+          {/* Left Door Iron Studs */}
+          <mesh position={[1.1, 1.25, 0.07]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.04, 6]} />
+            <meshStandardMaterial color="#333333" metalness={0.9} roughness={0.2} />
+          </mesh>
+        </group>
+
+        {/* Right Door Leaf with Hinge at X = +1.5 */}
+        <group ref={rightDoorHingeRef} position={[1.5, 0, 0]}>
+          <mesh
+            position={[-0.72, 1.25, 0]}
+            onClick={handleClick}
+            onPointerOver={handlePointerOver}
+            onPointerOut={handlePointerOut}
+          >
+            <boxGeometry args={[1.45, 2.45, 0.12]} />
+            <meshStandardMaterial
+              color="#2B1A10"
+              roughness={0.8}
+              metalness={0.1}
+            />
+          </mesh>
+
+          {/* Right Door Wrought Iron Straps */}
+          <mesh position={[-0.72, 1.9, 0.065]}>
+            <boxGeometry args={[1.4, 0.08, 0.02]} />
+            <meshStandardMaterial color="#1E1E1E" metalness={0.85} roughness={0.3} />
+          </mesh>
+          <mesh position={[-0.72, 0.6, 0.065]}>
+            <boxGeometry args={[1.4, 0.08, 0.02]} />
+            <meshStandardMaterial color="#1E1E1E" metalness={0.85} roughness={0.3} />
+          </mesh>
+
+          {/* Right Door Iron Studs */}
+          <mesh position={[-1.1, 1.25, 0.07]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.04, 6]} />
+            <meshStandardMaterial color="#333333" metalness={0.9} roughness={0.2} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* 4. Magical Alohomora Runestone Floating in Doorway */}
+      <group
+        position={[0, 1.35, 0.4]}
+        onClick={handleClick}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      >
+        <mesh ref={runeRef}>
+          <ringGeometry args={[0.32, 0.36, 16]} />
+          <meshBasicMaterial color="#FDE047" transparent opacity={hovered ? 0.9 : 0.4} side={THREE.DoubleSide} />
         </mesh>
       </group>
 
-      {/* Interactive Enter Prompt when nearby */}
+      {/* 5. Interactive Prompt Banner when nearby */}
       {(isNearby || hovered) && (
         <group
-          position={[0, 1.5, 0.8]}
+          position={[0, 1.5, 0.75]}
           onClick={handleClick}
           onPointerOver={handlePointerOver}
           onPointerOut={handlePointerOut}
         >
           <mesh>
-            <planeGeometry args={[1.8, 0.35]} />
-            <meshBasicMaterial color="#000000" transparent opacity={0.7} />
+            <planeGeometry args={[2.5, 0.4]} />
+            <meshBasicMaterial color="#120E0A" transparent opacity={0.9} />
           </mesh>
           <Text
             position={[0, 0, 0.01]}
-            fontSize={0.13}
-            color="#FFFFFF"
+            fontSize={0.14}
+            color="#FDE047"
             anchorX="center"
             anchorY="middle"
           >
-            [ CLICK TO ENTER ]
+            ✦ ALOHOMORA · ENTER ✦
           </Text>
         </group>
       )}
 
-      {/* Threshold Downlight */}
-      <pointLight
-        ref={glowLightRef}
-        position={[0, 2.4, 0.5]}
-        color={bay.doorColor}
-        distance={6}
-        intensity={1.5}
-      />
+      {/* 6. Warm Chamber Threshold Light (Active when approaching) */}
+      {(isNearby || hovered) && (
+        <pointLight
+          ref={glowLightRef}
+          position={[0, 2.2, 0.4]}
+          color="#F59E0B"
+          distance={7}
+          intensity={hovered ? 2.5 : 1.6}
+        />
+      )}
     </group>
   );
 };

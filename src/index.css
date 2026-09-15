@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Cinzel Decorative', 'Cinzel', 'Space Grotesk', serif;
+  --font-serif: 'Cinzel', 'Playfair Display', Georgia, serif;
   --font-mono: 'JetBrains Mono', monospace;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
@@ -9,6 +10,12 @@
   --color-chassis: #0B1017;
   --color-chassis-elevated: #101722;
   --color-chassis-active: #152030;
+
+  --color-gold-bright: #FDE047;
+  --color-gold-amber: #D4AF37;
+  --color-gold-dark: #854D0E;
+  --color-wood-walnut: #20140D;
+  --color-wood-dark: #120B07;
 
   --color-border-dim: #121824;
   --color-border-subtle: #161F2E;
@@ -33,6 +40,7 @@
     --border-subtle: #161F2E;
     --border-active: #25354C;
     --accent-cyan: #00F2FE;
+    --accent-gold: #D4AF37;
     --accent-blue: #2563EB;
     --accent-emerald: #10B981;
     --accent-amber: #F59E0B;
@@ -44,7 +52,7 @@
   html {
     color-scheme: dark;
     font-family: var(--font-body);
-    background-color: var(--bg-canvas);
+    background-color: #06080C;
     color: var(--text-primary);
     scroll-behavior: smooth;
   }
@@ -58,13 +66,17 @@
   }
 
   body {
-    background-color: var(--bg-canvas);
+    background-color: #06080C;
   }
 }
 
 /* Custom Typography Utilities */
 .font-display {
   font-family: var(--font-display);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
 }
 
 .font-mono {
@@ -74,6 +86,171 @@
 
 .font-body {
   font-family: var(--font-body);
+}
+
+/* Hogwarts Golden Shimmer Text */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #FFF6D6 0%, #F5CE62 35%, #D4AF37 70%, #9A741E 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gold-subtle {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F1DEC0 50%, #C9A763 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Ornate Antique Wooden & Gold Picture Frame (Image 2) */
+.hogwarts-frame {
+  position: relative;
+  background: linear-gradient(145deg, #2b180d 0%, #170d06 60%, #2f1b0f 100%);
+  border: 7px solid #231309;
+  box-shadow: 
+    0 12px 28px -4px rgba(0, 0, 0, 0.85),
+    0 4px 10px rgba(0, 0, 0, 0.6),
+    inset 0 0 10px rgba(0, 0, 0, 0.9),
+    inset 0 1px 2px rgba(212, 175, 55, 0.35);
+  border-radius: 4px;
+  outline: 2px solid #8e6827;
+  outline-offset: -3px;
+  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+
+.hogwarts-frame:hover {
+  transform: translateY(-4px) scale(1.02);
+  outline-color: #f1cf6b;
+  box-shadow: 
+    0 18px 36px -4px rgba(0, 0, 0, 0.95),
+    0 0 20px 2px rgba(212, 175, 55, 0.25),
+    inset 0 0 12px rgba(0, 0, 0, 0.85);
+}
+
+.hogwarts-frame::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border: 1px solid rgba(245, 206, 98, 0.3);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Hogwarts Top Banner Bar (Image 1) */
+.hogwarts-top-bar {
+  background: linear-gradient(180deg, rgba(38, 24, 14, 0.94) 0%, rgba(20, 12, 7, 0.96) 100%);
+  border: 1.5px solid #8f6a29;
+  box-shadow: 
+    0 10px 25px -3px rgba(0, 0, 0, 0.8),
+    0 0 15px rgba(212, 175, 55, 0.15),
+    inset 0 1px 0 rgba(245, 206, 98, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.8);
+  border-radius: 6px;
+  position: relative;
+}
+
+.hogwarts-top-bar::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Frosted Magical Slate Board (Image 2) */
+.hogwarts-board {
+  background: linear-gradient(135deg, rgba(28, 36, 48, 0.72) 0%, rgba(14, 20, 30, 0.82) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow: 
+    0 24px 60px -12px rgba(0, 0, 0, 0.85),
+    0 0 40px rgba(0, 0, 0, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    inset 0 0 40px rgba(10, 15, 22, 0.6);
+  border-radius: 6px;
+  position: relative;
+}
+
+/* Golden Corner Brackets with Filigree (Image 2) */
+.corner-bracket-gold {
+  position: relative;
+}
+
+.corner-bracket-gold::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 14px;
+  height: 14px;
+  border-top: 2.5px solid #d4af37;
+  border-left: 2.5px solid #d4af37;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.corner-bracket-gold::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-bottom: 2.5px solid #d4af37;
+  border-right: 2.5px solid #d4af37;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Floating 3D Magical Parchment Card (Image 1) */
+.hogwarts-floating-card {
+  background: linear-gradient(145deg, rgba(24, 30, 40, 0.65) 0%, rgba(12, 16, 22, 0.78) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(212, 175, 55, 0.5);
+  box-shadow: 
+    0 20px 40px -8px rgba(0, 0, 0, 0.8),
+    0 0 25px rgba(212, 175, 55, 0.18),
+    inset 0 1px 2px rgba(255, 240, 180, 0.25);
+  border-radius: 6px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.hogwarts-floating-card:hover {
+  border-color: rgba(245, 206, 98, 0.85);
+  box-shadow: 
+    0 28px 50px -6px rgba(0, 0, 0, 0.9),
+    0 0 35px rgba(245, 206, 98, 0.35),
+    inset 0 1px 3px rgba(255, 240, 180, 0.4);
+}
+
+@keyframes hogwartsFloat {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Technical Grid & Background Patterns */
@@ -207,6 +384,52 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #25354C;
+}
+
+/* Hogwarts Parchment Letter Theme */
+.parchment-letter-bg {
+  background-color: #EBD8B2;
+  background-image: 
+    radial-gradient(circle at 50% 30%, rgba(255, 250, 238, 0.85) 0%, rgba(240, 222, 185, 0.75) 45%, rgba(216, 192, 146, 0.85) 80%, rgba(168, 134, 86, 0.95) 100%),
+    radial-gradient(circle at 15% 20%, rgba(139, 90, 43, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 85% 75%, rgba(110, 65, 25, 0.16) 0%, transparent 50%),
+    radial-gradient(circle at 35% 85%, rgba(92, 53, 23, 0.14) 0%, transparent 45%),
+    linear-gradient(135deg, rgba(160, 116, 68, 0.1) 0%, transparent 50%, rgba(110, 65, 25, 0.15) 100%);
+  box-shadow: 
+    inset 0 0 35px rgba(85, 48, 18, 0.55),
+    inset 0 0 70px rgba(50, 25, 8, 0.4),
+    0 22px 60px rgba(0, 0, 0, 0.85),
+    0 0 25px rgba(180, 130, 60, 0.2);
+}
+
+/* Parchment Vintage Scrollbar */
+.parchment-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #8B5A2B rgba(180, 145, 95, 0.3);
+  -webkit-overflow-scrolling: touch;
+}
+.parchment-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.parchment-scrollbar::-webkit-scrollbar-track {
+  background: rgba(180, 145, 95, 0.35);
+  border-radius: 4px;
+}
+.parchment-scrollbar::-webkit-scrollbar-thumb {
+  background: #8B5A2B;
+  border-radius: 4px;
+  border: 1px solid #5C381E;
+}
+.parchment-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6E3B18;
+}
+
+/* Wax Seal Stamp Glow */
+.wax-seal-shadow {
+  box-shadow: 
+    0 4px 10px rgba(120, 20, 20, 0.45),
+    inset 0 2px 4px rgba(255, 200, 200, 0.35),
+    inset 0 -3px 6px rgba(50, 5, 5, 0.6);
 }
 
 /* Code Syntax & Log Blocks */

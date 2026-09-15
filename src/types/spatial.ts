@@ -78,4 +78,7 @@ export interface DossierContent {
   metricsOrDeliverables: string[];
   technologies: string[];
   diagramType?: 'llm_orchestration' | 'multicloud_dicom' | 'saas_workflow' | 'realtime_chat' | 'document_ocr' | 'servicenow_rag' | 'career_progression' | 'claude_cert' | string;
+  repoUrl?: string;
+  liveUrl?: string;
+  credentialUrl?: string;
 }

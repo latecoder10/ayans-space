@@ -5,15 +5,15 @@ import * as THREE from 'three';
 import { useScene } from '../../../context/SceneContext';
 import { DossierContent } from '../../../types/spatial';
 import { soundEngine } from '../../../utils/synthesizer';
+import { FloatingCandle, WallTorch } from '../common/HogwartsLighting';
 
 export const Room05_Certification: React.FC = () => {
-  const { openOverlay, exitRoom, currentRoomId, mode } = useScene();
-  const isInside = (mode === 'room' || mode === 'transitioning') && currentRoomId === 'room-certification';
+  const { openOverlay } = useScene();
 
-  const ROOM_X = -14;
+  const ROOM_X = -10;
   const ROOM_Z = -120;
 
-  const prismRef = useRef<THREE.Mesh>(null);
+  const crestRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
@@ -28,18 +28,18 @@ export const Room05_Certification: React.FC = () => {
     document.body.style.cursor = 'auto';
   };
 
-  useFrame((_, delta) => {
-    if (prismRef.current) {
-      prismRef.current.rotation.y += delta * 0.4;
-      prismRef.current.position.y = 1.8 + Math.sin(Date.now() * 0.002) * 0.08;
+  useFrame(({ clock }, delta) => {
+    if (crestRef.current) {
+      crestRef.current.rotation.y += delta * 0.4;
+      crestRef.current.position.y = 1.8 + Math.sin(clock.getElapsedTime() * 1.5) * 0.08;
     }
     if (ringRef.current) {
       ringRef.current.rotation.z += delta * 0.3;
-      ringRef.current.rotation.x += delta * 0.15;
     }
   });
 
   const openCertDossier = () => {
+    soundEngine.playAlohomora();
     const dossier: DossierContent = {
       id: 'claude-architect-cert',
       title: 'Claude Certified Architect: Foundations',
@@ -58,225 +58,184 @@ export const Room05_Certification: React.FC = () => {
       metricsOrDeliverables: [
         'Certified Foundations Credential achieved',
         'Direct application in QodeAI SDLC platform and OCR pipeline',
-        'Demonstrated architectural rigor in production AI systems',
+        'Enterprise-grade production LLM security standards',
       ],
-      technologies: ['Claude 3.5 Sonnet / Haiku / Opus', 'Anthropic API', 'Prompt Caching', 'Tool Use', 'Agentic Patterns', 'LangChain', 'Spring Boot'],
-      diagramType: 'claude_cert',
+      technologies: ['Anthropic Claude 3.5 Sonnet', 'Prompt Caching', 'Tool Use', 'TypeScript', 'Python', 'LLM Security'],
+      diagramType: 'llm_orchestration',
+      credentialUrl: 'https://www.anthropic.com',
+      repoUrl: 'https://github.com/latecoder10',
     };
     openOverlay(dossier);
   };
 
   return (
     <group position={[ROOM_X, 0, ROOM_Z]}>
-      {/* 1. Floor & Ceiling */}
+      {/* Dedicated Chamber Torchlight & Ambient Radiance */}
+      <pointLight position={[0, 3.2, 0]} color="#FFE29A" distance={18} intensity={2.2} />
+
+      {/* 1. Stone Chamber Floor */}
       <mesh position={[0, -0.05, 0]}>
-        <boxGeometry args={[14, 0.1, 12]} />
-        <meshStandardMaterial color="#120A04" metalness={0.85} roughness={0.2} />
-      </mesh>
-      <mesh position={[0, 4.4, 0]}>
-        <boxGeometry args={[14, 0.2, 12]} />
-        <meshStandardMaterial color="#0A0602" metalness={0.9} roughness={0.3} />
+        <boxGeometry args={[12, 0.1, 12]} />
+        <meshStandardMaterial color="#29241E" roughness={0.7} metalness={0.2} />
       </mesh>
 
-      {/* 2. Perimeter Sanctuary Walls */}
-      <mesh position={[0, 2.2, -6]}>
-        <boxGeometry args={[14, 4.4, 0.3]} />
-        <meshStandardMaterial color="#1A1008" metalness={0.7} roughness={0.4} />
+      {/* 2. Gothic Stone Walls */}
+      <mesh position={[-6, 2.5, 0]}>
+        <boxGeometry args={[0.3, 5.0, 12]} />
+        <meshStandardMaterial color="#2E2721" roughness={0.85} />
       </mesh>
-      <mesh position={[-7, 2.2, 0]}>
-        <boxGeometry args={[0.3, 4.4, 12]} />
-        <meshStandardMaterial color="#1A1008" metalness={0.7} roughness={0.4} />
+      <mesh position={[0, 2.5, -6]}>
+        <boxGeometry args={[12, 5.0, 0.3]} />
+        <meshStandardMaterial color="#2E2721" roughness={0.85} />
       </mesh>
-      <mesh position={[0, 2.2, 6]}>
-        <boxGeometry args={[14, 4.4, 0.3]} />
-        <meshStandardMaterial color="#1A1008" metalness={0.7} roughness={0.4} />
+      <mesh position={[0, 2.5, 6]}>
+        <boxGeometry args={[12, 5.0, 0.3]} />
+        <meshStandardMaterial color="#2E2721" roughness={0.85} />
+      </mesh>
+      {/* Entry Arch Wall (X = 6) */}
+      <mesh position={[6, 2.5, -3.5]}>
+        <boxGeometry args={[0.3, 5.0, 5]} />
+        <meshStandardMaterial color="#2E2721" roughness={0.85} />
+      </mesh>
+      <mesh position={[6, 2.5, 3.5]}>
+        <boxGeometry args={[0.3, 5.0, 5]} />
+        <meshStandardMaterial color="#2E2721" roughness={0.85} />
       </mesh>
 
-      {/* 3. Room Header */}
-      <group position={[0, 3.8, -5.7]}>
-        <Text fontSize={0.28} color="#F59E0B" anchorX="center">
-          CLAUDE CERTIFIED ARCHITECT MONUMENT // SECTOR 05
+      {/* 3. Ceiling */}
+      <mesh position={[0, 4.8, 0]}>
+        <boxGeometry args={[12, 0.3, 12]} />
+        <meshStandardMaterial color="#221C16" roughness={0.9} />
+      </mesh>
+
+      {/* 4. Floating Candles & Torches */}
+      <FloatingCandle position={[-2, 3.4, -2]} bobOffset={0.8} />
+      <FloatingCandle position={[2, 3.5, -2]} bobOffset={2.0} />
+      <FloatingCandle position={[-2, 3.3, 2]} bobOffset={3.2} />
+      <FloatingCandle position={[2, 3.6, 2]} bobOffset={4.4} />
+      <WallTorch position={[-5.8, 2.2, -3]} rotationY={Math.PI / 2} />
+      <WallTorch position={[-5.8, 2.2, 3]} rotationY={Math.PI / 2} />
+
+      {/* 5. Chamber Title Banner on Back Wall directly facing Entry Arch */}
+      <group position={[-5.8, 3.6, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <mesh>
+          <planeGeometry args={[7.2, 0.85]} />
+          <meshStandardMaterial color="#1E140C" roughness={0.7} metalness={0.4} />
+        </mesh>
+        <Text position={[0, 0.14, 0.02]} fontSize={0.24} color="#FDE047" anchorX="center">
+          SANCTUM OF ANTHROPIC MASTERY
         </Text>
-        <Text position={[0, -0.3, 0]} fontSize={0.14} color="#FDE68A" anchorX="center">
-          ANTHROPIC FOUNDATIONS: AGENTIC ARCHITECTURES & PRODUCTION RIGOR
+        <Text position={[0, -0.15, 0.02]} fontSize={0.12} color="#E2E8F0" anchorX="center">
+          Claude Certified Architect: Foundations · Context Engineering · Agentic Tool Use
         </Text>
       </group>
 
-      {/* 4. Central Monument Plinth */}
-      <mesh position={[0, 0.5, 0]}>
-        <cylinderGeometry args={[1.6, 2.0, 1.0, 8]} />
-        <meshStandardMaterial color="#1C140C" metalness={0.8} roughness={0.25} />
-      </mesh>
+      {/* 6. Central Golden Anthropic Crest Monolith (Majestic Backdrop) */}
+      <group position={[-2.8, 0, 0]}>
+        {/* Tiered Stone & Gold Plinth Base */}
+        <mesh position={[0, 0.25, 0]}>
+          <cylinderGeometry args={[1.5, 1.8, 0.5, 8]} />
+          <meshStandardMaterial color="#2B1A10" roughness={0.8} />
+        </mesh>
+        <mesh position={[0, 0.55, 0]}>
+          <cylinderGeometry args={[1.2, 1.35, 0.15, 8]} />
+          <meshStandardMaterial color="#D4AF37" metalness={0.8} roughness={0.3} />
+        </mesh>
 
-      {/* Stepped Golden Pedestal Collar */}
-      <mesh position={[0, 1.05, 0]}>
-        <cylinderGeometry args={[1.2, 1.4, 0.1, 8]} />
-        <meshStandardMaterial color="#D97706" metalness={0.9} roughness={0.2} />
-      </mesh>
+        {/* Floating Rotating Golden Medallion Crest */}
+        <group
+          ref={crestRef}
+          position={[0, 1.8, 0]}
+          onClick={(e: { stopPropagation: () => void; delta?: number }) => {
+            if (e.delta && e.delta > 8) return;
+            e.stopPropagation();
+            openCertDossier();
+          }}
+          onPointerOver={handlePointerOver}
+          onPointerOut={handlePointerOut}
+        >
+          {/* Heavy Golden Seal Medallion */}
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.9, 0.9, 0.12, 32]} />
+            <meshStandardMaterial
+              color="#D4AF37"
+              metalness={0.9}
+              roughness={0.2}
+              emissive="#F59E0B"
+              emissiveIntensity={hovered ? 0.4 : 0.1}
+            />
+          </mesh>
 
-      {/* Floating Obsidian Prism with Embedded Claude Certified Glyph */}
-      <mesh
-        ref={prismRef}
-        position={[0, 1.8, 0]}
+          {/* Inner Dark Velvet Insert */}
+          <mesh position={[0, 0, 0.065]}>
+            <circleGeometry args={[0.78, 32]} />
+            <meshStandardMaterial color="#1E140C" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0, -0.065]} rotation={[0, Math.PI, 0]}>
+            <circleGeometry args={[0.78, 32]} />
+            <meshStandardMaterial color="#1E140C" roughness={0.6} />
+          </mesh>
+
+          {/* Anthropic / Claude Spark Symbol */}
+          <Text position={[0, 0.1, 0.075]} fontSize={0.16} color="#FDE047" anchorX="center" anchorY="middle">
+            ✦ CLAUDE ✦
+          </Text>
+          <Text position={[0, -0.15, 0.075]} fontSize={0.09} color="#FFFFFF" anchorX="center" anchorY="middle">
+            CERTIFIED ARCHITECT
+          </Text>
+
+          {/* Opposite side text */}
+          <Text position={[0, 0.1, -0.075]} rotation={[0, Math.PI, 0]} fontSize={0.16} color="#FDE047" anchorX="center" anchorY="middle">
+            ✦ ANTHROPIC ✦
+          </Text>
+          <Text position={[0, -0.15, -0.075]} rotation={[0, Math.PI, 0]} fontSize={0.09} color="#FFFFFF" anchorX="center" anchorY="middle">
+            FOUNDATIONS
+          </Text>
+        </group>
+
+        {/* Rotating Luminous Runic Orbit Ring */}
+        <mesh ref={ringRef} position={[0, 1.8, 0]} rotation={[-Math.PI / 4, 0, 0]}>
+          <ringGeometry args={[1.3, 1.38, 32]} />
+          <meshBasicMaterial color="#FDE047" side={THREE.DoubleSide} />
+        </mesh>
+
+        <pointLight position={[0, 2.0, 0]} color="#FDE047" distance={7} intensity={2.6} />
+      </group>
+
+      {/* 7. Grimoire Pedestal with Credential Details (Aligned directly in front of door facing user) */}
+      <group
+        position={[-0.8, 0, 0]}
+        rotation={[0, Math.PI / 2, 0]}
         onClick={(e: { stopPropagation: () => void; delta?: number }) => {
           if (e.delta && e.delta > 8) return;
           e.stopPropagation();
           openCertDossier();
         }}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
       >
-        <octahedronGeometry args={[0.9, 0]} />
-        <meshStandardMaterial
-          color="#0B0907"
-          metalness={0.9}
-          roughness={0.1}
-          emissive="#F59E0B"
-          emissiveIntensity={hovered ? 0.6 : 0.25}
-        />
-      </mesh>
-
-      {/* Orbiting Crystalline Halo Ring */}
-      <mesh ref={ringRef} position={[0, 1.8, 0]}>
-        <torusGeometry args={[1.6, 0.03, 16, 64]} />
-        <meshBasicMaterial color="#FBBF24" transparent opacity={0.8} />
-      </mesh>
-
-      {/* Floating Inscription Text */}
-      <group position={[0, 2.8, 0]}>
-        <Text fontSize={0.18} color="#F59E0B" anchorX="center">
-          CLAUDE CERTIFIED ARCHITECT
-        </Text>
-        <Text position={[0, -0.22, 0]} fontSize={0.12} color="#FFFFFF" anchorX="center">
-          FOUNDATIONS CREDENTIAL
-        </Text>
-        <Text position={[0, -0.42, 0]} fontSize={0.09} color="#FDE68A" anchorX="center">
-          ▶ CLICK ARTIFACT TO VERIFY ARCHITECTURAL PROOF ◀
-        </Text>
-      </group>
-
-      {/* 5. Four Orbiting Architectural Pillar Tablets */}
-      {/* Pillar 1: Context Engineering */}
-      <group position={[-3.5, 1.4, -1.8]} rotation={[0, 0.3, 0]}>
-        <mesh>
-          <boxGeometry args={[1.6, 1.8, 0.1]} />
-          <meshStandardMaterial color="#1A1108" emissive="#F59E0B" emissiveIntensity={0.15} />
+        <mesh position={[0, 0.5, 0]}>
+          <cylinderGeometry args={[0.45, 0.6, 1.0, 8]} />
+          <meshStandardMaterial color="#2B1A10" roughness={0.8} />
         </mesh>
-        <Text position={[0, 0.6, 0.06]} fontSize={0.11} color="#F59E0B" anchorX="center">
-          PILLAR I
-        </Text>
-        <Text position={[0, 0.35, 0.06]} fontSize={0.09} color="#FFFFFF" anchorX="center">
-          CONTEXT ARCHITECTURE
-        </Text>
-        <Text position={[0, 0.05, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Prompt Caching
-        </Text>
-        <Text position={[0, -0.15, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Dynamic Context Reduction
-        </Text>
-        <Text position={[0, -0.35, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Precision Needle Retrieval
-        </Text>
-      </group>
-
-      {/* Pillar 2: Deterministic Tools */}
-      <group position={[-1.8, 1.4, -3.8]} rotation={[0, 0.1, 0]}>
-        <mesh>
-          <boxGeometry args={[1.6, 1.8, 0.1]} />
-          <meshStandardMaterial color="#1A1108" emissive="#F59E0B" emissiveIntensity={0.15} />
+        <mesh position={[0, 1.4, 0]} rotation={[-0.25, 0, 0]}>
+          <boxGeometry args={[1.8, 1.0, 0.08]} />
+          <meshStandardMaterial color="#1E140C" emissive="#D4AF37" emissiveIntensity={hovered ? 0.35 : 0.05} />
         </mesh>
-        <Text position={[0, 0.6, 0.06]} fontSize={0.11} color="#F59E0B" anchorX="center">
-          PILLAR II
-        </Text>
-        <Text position={[0, 0.35, 0.06]} fontSize={0.09} color="#FFFFFF" anchorX="center">
-          DETERMINISTIC TOOLS
-        </Text>
-        <Text position={[0, 0.05, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Strict JSON Schemas
-        </Text>
-        <Text position={[0, -0.15, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Multi-Step Tool Loops
-        </Text>
-        <Text position={[0, -0.35, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Automated Recovery Retries
-        </Text>
-      </group>
-
-      {/* Pillar 3: Agentic Workflows */}
-      <group position={[1.8, 1.4, -3.8]} rotation={[0, -0.1, 0]}>
-        <mesh>
-          <boxGeometry args={[1.6, 1.8, 0.1]} />
-          <meshStandardMaterial color="#1A1108" emissive="#F59E0B" emissiveIntensity={0.15} />
+        <mesh position={[0, 1.4, 0.045]} rotation={[-0.25, 0, 0]}>
+          <planeGeometry args={[1.7, 0.9]} />
+          <meshStandardMaterial color="#F7F1E5" roughness={0.9} />
         </mesh>
-        <Text position={[0, 0.6, 0.06]} fontSize={0.11} color="#F59E0B" anchorX="center">
-          PILLAR III
+        <Text position={[0, 1.66, 0.1]} fontSize={0.085} color="#854D0E" anchorX="center">
+          OFFICIAL VERIFIED CREDENTIAL
         </Text>
-        <Text position={[0, 0.35, 0.06]} fontSize={0.09} color="#FFFFFF" anchorX="center">
-          AGENTIC WORKFLOWS
+        <Text position={[0, 1.48, 0.1]} fontSize={0.065} color="#1E293B" anchorX="center">
+          Issued by Anthropic · Verified AI Architect
         </Text>
-        <Text position={[0, 0.05, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Coordinator-Worker Swarms
-        </Text>
-        <Text position={[0, -0.15, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Subagent Isolation
-        </Text>
-        <Text position={[0, -0.35, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          State Reducer Synthesis
+        <Text position={[0, 1.25, 0.1]} fontSize={0.065} color="#B45309" anchorX="center">
+          {hovered ? '✦ CLICK TO UNSEAL FULL DOSSIER ✦' : 'Click to Inspect Syllabus & Deliverables'}
         </Text>
       </group>
-
-      {/* Pillar 4: Production Resilience */}
-      <group position={[3.5, 1.4, -1.8]} rotation={[0, -0.3, 0]}>
-        <mesh>
-          <boxGeometry args={[1.6, 1.8, 0.1]} />
-          <meshStandardMaterial color="#1A1108" emissive="#F59E0B" emissiveIntensity={0.15} />
-        </mesh>
-        <Text position={[0, 0.6, 0.06]} fontSize={0.11} color="#F59E0B" anchorX="center">
-          PILLAR IV
-        </Text>
-        <Text position={[0, 0.35, 0.06]} fontSize={0.09} color="#FFFFFF" anchorX="center">
-          PRODUCTION RESILIENCE
-        </Text>
-        <Text position={[0, 0.05, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Quota & Rate Backoff
-        </Text>
-        <Text position={[0, -0.15, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Multi-Provider Failovers
-        </Text>
-        <Text position={[0, -0.35, 0.06]} fontSize={0.065} color="#D1D5DB" anchorX="center">
-          Enterprise Security Walls
-        </Text>
-      </group>
-
-      {/* 6. Exit Threshold Gateway on the right */}
-      <group position={[6.6, 1.5, 0]} rotation={[0, -Math.PI / 2, 0]}>
-        <mesh
-          onClick={(e: { stopPropagation: () => void; delta?: number }) => {
-            if (e.delta && e.delta > 8) return;
-            e.stopPropagation();
-            exitRoom();
-          }}
-          onPointerOver={() => {
-            document.body.style.cursor = 'pointer';
-            soundEngine.playHover();
-          }}
-          onPointerOut={() => {
-            document.body.style.cursor = 'auto';
-          }}
-        >
-          <planeGeometry args={[3, 2.8]} />
-          <meshBasicMaterial color="#F59E0B" transparent opacity={0.18} />
-        </mesh>
-        <Text position={[0, 0.4, 0.05]} fontSize={0.16} color="#F59E0B" anchorX="center">
-          [ ← RETURN TO CORRIDOR ]
-        </Text>
-        <Text position={[0, 0.1, 0.05]} fontSize={0.11} color="#FDE68A" anchorX="center">
-          (OR PRESS ESCAPE)
-        </Text>
-      </group>
-
-      <pointLight position={[0, 3.2, 0]} color="#F59E0B" distance={15} intensity={isInside ? 4 : 1.2} />
-      <directionalLight position={[-3, 6, 2]} color="#FEF3C7" intensity={0.5} />
     </group>
   );
 };

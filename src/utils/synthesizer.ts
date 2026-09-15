@@ -220,6 +220,115 @@ class SoundEngine {
       // Ignore
     }
   }
+
+  // Magical spell cast sound (harmonic shimmer)
+  public playSpellCast() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+      freqs.forEach((f, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = this.ctx.currentTime + idx * 0.035;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, startTime);
+        osc.frequency.exponentialRampToValueAtTime(f * 1.05, startTime + 0.2);
+
+        gain.gain.setValueAtTime(0.02, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.25);
+      });
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Lumos radiant light spark
+  public playLumos() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, this.ctx.currentTime + 0.25);
+
+      gain.gain.setValueAtTime(0.025, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.3);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.3);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Alohomora unlocking sound
+  public playAlohomora() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      // Heavy click
+      this.playClick(320);
+
+      // Followed by shimmering chime
+      setTimeout(() => {
+        this.playSpellCast();
+      }, 50);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Parchment rustle / slide
+  public playParchment() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+
+      const bufferSize = this.ctx.sampleRate * 0.12;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * 0.04 * (1 - i / bufferSize);
+      }
+
+      const whiteNoise = this.ctx.createBufferSource();
+      whiteNoise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
+      filter.Q.setValueAtTime(2, this.ctx.currentTime);
+
+      whiteNoise.connect(filter);
+      filter.connect(this.ctx.destination);
+
+      whiteNoise.start();
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export const soundEngine = new SoundEngine();

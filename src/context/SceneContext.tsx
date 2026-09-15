@@ -13,7 +13,9 @@ interface SceneContextType {
   closestBay: SectorBay | null;
   distanceToClosestBay: number;
   overlayContent: DossierContent | null;
+  dossierScreenPos: { x: number; y: number } | null;
   isQuickTravelOpen: boolean;
+  isContactModalOpen: boolean;
   isAudioMuted: boolean;
   
   // Actions
@@ -22,9 +24,12 @@ interface SceneContextType {
   enterRoom: (roomId: string) => void;
   exitRoom: () => void;
   warpToSector: (sectorId: string) => void;
-  openOverlay: (content: DossierContent) => void;
+  openOverlay: (content: DossierContent, screenPos?: { x: number; y: number }) => void;
   closeOverlay: () => void;
+  setDossierScreenPos: (pos: { x: number; y: number } | null) => void;
   toggleQuickTravel: () => void;
+  openContactModal: () => void;
+  closeContactModal: () => void;
   toggleAudio: () => void;
 }
 
@@ -36,57 +41,57 @@ export const useScene = (): SceneContextType => {
   return ctx;
 };
 
+function getInitialSceneState() {
+  if (typeof window === 'undefined') {
+    return { mode: 'corridor' as SceneMode, z: 20, roomId: null as string | null };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const zParam = params.get('z');
+  const sectorParam = params.get('sector');
+  const roomParam = params.get('room');
+
+  if (roomParam) {
+    const bay = SECTOR_BAYS.find(
+      (b) =>
+        b.id === roomParam ||
+        b.id.replace('room-', '') === roomParam ||
+        b.id.includes(roomParam) ||
+        b.code.toLowerCase() === roomParam.toLowerCase()
+    );
+    if (bay) {
+      return { mode: 'room' as SceneMode, z: bay.doorZ, roomId: bay.id };
+    }
+  }
+
+  if (sectorParam) {
+    const bay = SECTOR_BAYS.find((b) => b.id === sectorParam || b.code.toLowerCase() === sectorParam.toLowerCase());
+    if (bay) {
+      return { mode: 'corridor' as SceneMode, z: bay.doorZ, roomId: null };
+    }
+  }
+
+  if (zParam) {
+    const parsedZ = parseFloat(zParam);
+    if (!isNaN(parsedZ)) {
+      return { mode: 'corridor' as SceneMode, z: parsedZ, roomId: null };
+    }
+  }
+
+  return { mode: 'corridor' as SceneMode, z: 20, roomId: null };
+}
+
 export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mode, setMode] = useState<SceneMode>('corridor');
-  const [cameraZ, setCameraZ] = useState<number>(20);
-  const [targetZ, setTargetZState] = useState<number>(20);
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
-  const [overlayContent, setOverlayContent] = useState<DossierContent | null>(null);
-  const [isQuickTravelOpen, setIsQuickTravelOpen] = useState<boolean>(false);
-  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
-
-  // Initialize from URL search parameters on mount (deep-linking & testing)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  const [initial] = useState(getInitialSceneState);
+  const [mode, setMode] = useState<SceneMode>(initial.mode);
+  const [cameraZ, setCameraZ] = useState<number>(initial.z);
+  const [targetZ, setTargetZState] = useState<number>(initial.z);
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(initial.roomId);
+  const [overlayContent, setOverlayContent] = useState<DossierContent | null>(() => {
+    if (typeof window === 'undefined') return null;
     const params = new URLSearchParams(window.location.search);
-    const zParam = params.get('z');
-    const sectorParam = params.get('sector');
-    const roomParam = params.get('room');
     const overlayParam = params.get('overlay');
-
-    if (zParam) {
-      const parsedZ = parseFloat(zParam);
-      if (!isNaN(parsedZ)) {
-        setTargetZState(parsedZ);
-        setCameraZ(parsedZ);
-      }
-    } else if (sectorParam) {
-      const bay = SECTOR_BAYS.find((b) => b.id === sectorParam || b.code.toLowerCase() === sectorParam.toLowerCase());
-      if (bay) {
-        setTargetZState(bay.doorZ);
-        setCameraZ(bay.doorZ);
-      }
-    }
-
-    if (roomParam) {
-      const bay = SECTOR_BAYS.find(
-        (b) =>
-          b.id === roomParam ||
-          b.id.replace('room-', '') === roomParam ||
-          b.id.includes(roomParam) ||
-          b.code.toLowerCase() === roomParam.toLowerCase()
-      );
-      if (bay) {
-        setTargetZState(bay.doorZ);
-        setCameraZ(bay.doorZ);
-        setCurrentRoomId(bay.id);
-        setMode('room');
-      }
-    }
-
     if (overlayParam) {
-      // Auto-open dossier if requested
-      openOverlay({
+      return {
         id: overlayParam,
         title: 'QodeAI — Enterprise SDLC Automation Engine',
         subtitle: 'Autonomous transformation of unstructured requirements into verified production artifacts',
@@ -103,10 +108,16 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           'Presented in live technical demos to 2 prospective enterprise clients',
           'Zero-interruption LLM failover mechanism'
         ],
-        technologies: ['Java', 'Spring Boot', 'React', 'TypeScript', 'LangChain', 'ChromaDB', 'Docker']
-      });
+        technologies: ['Java', 'Spring Boot', 'React', 'TypeScript', 'LangChain', 'ChromaDB', 'Docker'],
+        repoUrl: 'https://github.com/latecoder10',
+      };
     }
-  }, []);
+    return null;
+  });
+  const [dossierScreenPos, setDossierScreenPos] = useState<{ x: number; y: number } | null>(null);
+  const [isQuickTravelOpen, setIsQuickTravelOpen] = useState<boolean>(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState<boolean>(false);
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
 
   // Helper to clamp target Z along corridor [ -155, 22 ]
   const setTargetZ = useCallback((action: number | ((prev: number) => number)) => {
@@ -192,20 +203,35 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [mode]);
 
   // Global Dossier Overlay
-  const openOverlay = useCallback((content: DossierContent) => {
+  const openOverlay = useCallback((content: DossierContent, screenPos?: { x: number; y: number }) => {
     soundEngine.playNodePulse(1200);
     setOverlayContent(content);
+    if (screenPos) {
+      setDossierScreenPos(screenPos);
+    }
   }, []);
 
   const closeOverlay = useCallback(() => {
     soundEngine.playClick(800);
     setOverlayContent(null);
+    setDossierScreenPos(null);
   }, []);
 
   // Quick Travel Menu
   const toggleQuickTravel = useCallback(() => {
     soundEngine.playClick(900);
     setIsQuickTravelOpen((prev) => !prev);
+  }, []);
+
+  // Contact Modal
+  const openContactModal = useCallback(() => {
+    soundEngine.playAlohomora();
+    setIsContactModalOpen(true);
+  }, []);
+
+  const closeContactModal = useCallback(() => {
+    soundEngine.playClick(800);
+    setIsContactModalOpen(false);
   }, []);
 
   // Audio Toggle
@@ -222,7 +248,9 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (overlayContent) {
+        if (isContactModalOpen) {
+          closeContactModal();
+        } else if (overlayContent) {
           closeOverlay();
         } else if (mode === 'room') {
           exitRoom();
@@ -237,7 +265,7 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [overlayContent, mode, isQuickTravelOpen, closeOverlay, exitRoom, toggleQuickTravel]);
+  }, [overlayContent, mode, isQuickTravelOpen, isContactModalOpen, closeOverlay, exitRoom, toggleQuickTravel, closeContactModal]);
 
   const value = useMemo(
     () => ({
@@ -249,7 +277,9 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       closestBay,
       distanceToClosestBay,
       overlayContent,
+      dossierScreenPos,
       isQuickTravelOpen,
+      isContactModalOpen,
       isAudioMuted,
       setTargetZ,
       updateCameraZ,
@@ -258,7 +288,10 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       warpToSector,
       openOverlay,
       closeOverlay,
+      setDossierScreenPos,
       toggleQuickTravel,
+      openContactModal,
+      closeContactModal,
       toggleAudio,
     }),
     [
@@ -270,7 +303,9 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       closestBay,
       distanceToClosestBay,
       overlayContent,
+      dossierScreenPos,
       isQuickTravelOpen,
+      isContactModalOpen,
       isAudioMuted,
       setTargetZ,
       updateCameraZ,
@@ -279,7 +314,10 @@ export const SceneProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       warpToSector,
       openOverlay,
       closeOverlay,
+      setDossierScreenPos,
       toggleQuickTravel,
+      openContactModal,
+      closeContactModal,
       toggleAudio,
     ]
   );

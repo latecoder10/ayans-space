@@ -32,6 +32,9 @@ export interface CaseStudy {
   metricsOrScope: string[];
   technologies: string[];
   diagramType: 'llm_orchestration' | 'multicloud_dicom' | 'saas_workflow' | 'realtime_chat';
+  repoUrl?: string;
+  liveUrl?: string;
+  credentialUrl?: string;
 }
 
 export interface TechnologyNode {

@@ -10,10 +10,8 @@ export const CorridorCameraRig: React.FC = () => {
   const {
     mode,
     targetZ,
-    setTargetZ,
     updateCameraZ,
     currentRoomId,
-    distanceToClosestBay,
     closestBay,
   } = useScene();
 
@@ -39,6 +37,9 @@ export const CorridorCameraRig: React.FC = () => {
   // Keyboard navigation tracking
   const keysDown = useRef<Set<string>>(new Set());
 
+  // Reusable vector for look target to prevent per-frame garbage collection
+  const lookTarget = useRef(new THREE.Vector3());
+
   // Helper: Clamp position within specific room boundaries
   const clampRoomPosition = useCallback((pos: THREE.Vector3, roomId: string | null) => {
     if (!roomId) return;
@@ -47,23 +48,24 @@ export const CorridorCameraRig: React.FC = () => {
 
     if (bay.doorSide === 'left') {
       // Left rooms (Archive 01, Core 03, Monument 05)
-      // Center: X = -14, Z = bay.doorZ
-      pos.x = Math.max(-19.5, Math.min(-8.5, pos.x));
-      pos.z = Math.max(bay.doorZ - 5.0, Math.min(bay.doorZ + 5.0, pos.z));
+      // Center: X = -10, Door at X = -4
+      pos.x = Math.max(-14.5, Math.min(-6.2, pos.x));
+      pos.z = Math.max(bay.doorZ - 4.5, Math.min(bay.doorZ + 4.5, pos.z));
     } else if (bay.doorSide === 'right') {
       // Right rooms (AI Lab 02, Career 04)
-      // Center: X = +14, Z = bay.doorZ
-      pos.x = Math.max(8.5, Math.min(19.5, pos.x));
-      pos.z = Math.max(bay.doorZ - 5.0, Math.min(bay.doorZ + 5.0, pos.z));
+      // Center: X = +10, Door at X = +4
+      pos.x = Math.max(6.2, Math.min(14.5, pos.x));
+      pos.z = Math.max(bay.doorZ - 4.5, Math.min(bay.doorZ + 4.5, pos.z));
     } else if (bay.doorSide === 'center') {
-      // Sector 06 Observation Deck
-      // Center: X = 0, Z = -170
-      pos.x = Math.max(-9.0, Math.min(9.0, pos.x));
-      pos.z = Math.max(-178.0, Math.min(-160.0, pos.z));
+      // Sector 06 Contact Horizon Platform & Observation Deck
+      // Center: X = 0, Z = -166, Deck radius = 10.5m
+      pos.x = Math.max(-8.5, Math.min(8.5, pos.x));
+      pos.z = Math.max(-173.0, Math.min(-153.0, pos.z));
     }
   }, []);
 
-  // Initialize camera position based on initial URL parameters or state
+  // Initialize camera position once on mount or when room mode changes
+  const hasInitialized = useRef(false);
   useEffect(() => {
     if (mode === 'room' && currentRoomId) {
       const bay = SECTOR_BAYS.find((b) => b.id === currentRoomId);
@@ -73,14 +75,14 @@ export const CorridorCameraRig: React.FC = () => {
         let initYaw = 0;
 
         if (bay.doorSide === 'left') {
-          initX = -10;
+          initX = -6.8;
           initYaw = Math.PI / 2;
         } else if (bay.doorSide === 'right') {
-          initX = 10;
+          initX = 6.8;
           initYaw = -Math.PI / 2;
         } else if (bay.doorSide === 'center') {
           initX = 0;
-          initZ = -162;
+          initZ = -158.5;
           initYaw = 0;
         }
 
@@ -96,18 +98,22 @@ export const CorridorCameraRig: React.FC = () => {
       }
     }
 
-    currentPos.current.set(0, 1.7, targetZ);
-    targetPos.current.set(0, 1.7, targetZ);
-    yaw.current = 0;
-    targetYaw.current = 0;
-    pitch.current = 0;
-    targetPitch.current = 0;
-    camera.position.copy(currentPos.current);
+    if (!hasInitialized.current) {
+      currentPos.current.set(0, 1.7, targetZ);
+      targetPos.current.set(0, 1.7, targetZ);
+      yaw.current = 0;
+      targetYaw.current = 0;
+      pitch.current = 0;
+      targetPitch.current = 0;
+      camera.position.copy(currentPos.current);
+      hasInitialized.current = true;
+    }
   }, [camera, mode, currentRoomId, targetZ]);
 
-  // Sync external warp targetZ (e.g. from Cmd+K quick travel)
+  // Smoothly glide to warp targetZ (e.g. from Cmd+K quick travel or UI sector jumps)
   useEffect(() => {
-    if (mode === 'corridor' && Math.abs(targetZ - targetPos.current.z) > 4) {
+    if (mode === 'corridor' && Math.abs(targetZ - targetPos.current.z) > 1.5) {
+      // Instead of an abrupt jump that causes screen trembling, smoothly glide to the target
       targetPos.current.z = targetZ;
       targetPos.current.x = 0;
       targetYaw.current = 0;
@@ -117,14 +123,15 @@ export const CorridorCameraRig: React.FC = () => {
   // Pointer drag & trackpad listeners for free-look rotation
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
-      // Don't drag if clicking UI buttons, modals or inputs
-      const target = e.target as HTMLElement;
+      // Don't drag if clicking UI buttons, modals, overlays or inputs
+      const target = e.target as HTMLElement | null;
       if (
         target &&
         (target.tagName === 'BUTTON' ||
           target.tagName === 'A' ||
           target.tagName === 'INPUT' ||
-          target.closest('.pointer-events-auto'))
+          target.closest('#in-game-dossier-popover') ||
+          target.closest('.pointer-events-auto:not(#root canvas)'))
       ) {
         return;
       }
@@ -141,12 +148,12 @@ export const CorridorCameraRig: React.FC = () => {
       const dy = e.clientY - lastPointer.current.y;
       lastPointer.current = { x: e.clientX, y: e.clientY };
 
-      // Free look rotation: drag left turns left, drag up looks up
-      targetYaw.current -= dx * 0.0035;
-      targetPitch.current -= dy * 0.003;
+      // Free look rotation: clean, responsive, natural sensitivity
+      targetYaw.current -= dx * 0.0025;
+      targetPitch.current -= dy * 0.002;
 
-      // Clamp pitch to prevent camera flip (~ -72 deg to +72 deg)
-      targetPitch.current = Math.max(-1.25, Math.min(1.25, targetPitch.current));
+      // Restrict pitch to gentle eye-level angles (-30 deg to +30 deg) so users never get disoriented
+      targetPitch.current = Math.max(-0.55, Math.min(0.55, targetPitch.current));
     };
 
     const handlePointerUp = () => {
@@ -156,23 +163,31 @@ export const CorridorCameraRig: React.FC = () => {
       }
     };
 
-    // Trackpad two-finger pan (deltaX) & vertical scroll (deltaY)
+    // Smooth forward/backward wheel navigation without cross-axis yaw twisting
     const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-
-      // Trackpad two-finger horizontal swipe -> smooth yaw rotation
-      if (Math.abs(e.deltaX) > 0.5) {
-        targetYaw.current -= e.deltaX * 0.0025;
+      // Allow natural scrolling on DOM popups, modals, drawers, and scroll containers
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.closest('#in-game-dossier-popover') ||
+          target.closest('.overflow-y-auto') ||
+          target.closest('.overflow-auto') ||
+          target.closest('[data-scrollable="true"]') ||
+          target.closest('.pointer-events-auto:not(#root canvas)'))
+      ) {
+        return;
       }
 
-      // Vertical scroll / trackpad two-finger swipe
+      e.preventDefault();
+
+      // Clamp wheel delta to prevent sudden huge jumps
+      const clampedDeltaY = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 50);
+
       if (mode === 'corridor') {
-        const delta = e.deltaY * 0.025;
-        targetPos.current.z = Math.min(22, Math.max(-155, targetPos.current.z - delta));
-        setTargetZ(targetPos.current.z);
+        const delta = clampedDeltaY * 0.035;
+        targetPos.current.z = Math.min(22, Math.max(-149.2, targetPos.current.z - delta));
       } else if (mode === 'room') {
-        // Dolly forward/backward in the current camera facing direction
-        const moveDist = -e.deltaY * 0.015;
+        const moveDist = -clampedDeltaY * 0.02;
         const fwdX = -Math.sin(yaw.current);
         const fwdZ = -Math.cos(yaw.current);
         targetPos.current.x += fwdX * moveDist;
@@ -181,47 +196,57 @@ export const CorridorCameraRig: React.FC = () => {
       }
     };
 
-    // Keyboard event listeners
+    // Keyboard event listeners - register keys cleanly without conflicting instant jumps
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
       keysDown.current.add(e.code);
-
-      // Instant step fallback for arrow keys / page keys
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'PageUp') {
-        if (mode === 'corridor') setTargetZ((prev) => prev + 1.5);
-      } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'PageDown') {
-        if (mode === 'corridor') setTargetZ((prev) => prev - 1.5);
-      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       keysDown.current.delete(e.code);
     };
 
-    // Touch event listeners for mobile free roaming
+    // Mobile touch controls: smooth, predictable, no dizzying pitch twists
     const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.closest('#in-game-dossier-popover') ||
+          target.closest('.overflow-y-auto') ||
+          target.closest('.pointer-events-auto:not(#root canvas)'))
+      ) {
+        return;
+      }
+
       if (e.touches.length === 1) {
         touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.closest('#in-game-dossier-popover') ||
+          target.closest('.overflow-y-auto') ||
+          target.closest('.pointer-events-auto:not(#root canvas)'))
+      ) {
+        return;
+      }
+
       if (e.touches.length === 1) {
         const dx = e.touches[0].clientX - touchStartPos.current.x;
         const dy = e.touches[0].clientY - touchStartPos.current.y;
         touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
-        targetYaw.current -= dx * 0.005;
-        targetPitch.current -= dy * 0.004;
-        targetPitch.current = Math.max(-1.25, Math.min(1.25, targetPitch.current));
+        // Horizontal swipe smoothly turns view
+        targetYaw.current -= dx * 0.003;
 
-        // Touch drag up/down also propels forward/backward slightly
+        // Vertical swipe glides forward/backward along line of sight, with zero pitch distortion
         if (mode === 'corridor') {
-          targetPos.current.z += dy * 0.03;
+          targetPos.current.z += dy * 0.035;
           targetPos.current.z = Math.min(22, Math.max(-155, targetPos.current.z));
-          setTargetZ(targetPos.current.z);
         } else if (mode === 'room') {
           const fwdX = -Math.sin(yaw.current);
           const fwdZ = -Math.cos(yaw.current);
@@ -254,7 +279,7 @@ export const CorridorCameraRig: React.FC = () => {
       window.removeEventListener('touchmove', handleTouchMove);
       document.body.style.cursor = 'auto';
     };
-  }, [mode, setTargetZ, clampRoomPosition, currentRoomId]);
+  }, [mode, clampRoomPosition, currentRoomId]);
 
   // Handle Room Transitions with GSAP
   useEffect(() => {
@@ -268,15 +293,15 @@ export const CorridorCameraRig: React.FC = () => {
       let targetYawVal = 0;
 
       if (bay.doorSide === 'left') {
-        targetX = -10;
-        targetYawVal = Math.PI / 2; // Face into left room
+        targetX = -6.8;
+        targetYawVal = Math.PI / 2; // Face straight into left room exhibits
       } else if (bay.doorSide === 'right') {
-        targetX = 10;
-        targetYawVal = -Math.PI / 2; // Face into right room
+        targetX = 6.8;
+        targetYawVal = -Math.PI / 2; // Face straight into right room exhibits
       } else if (bay.doorSide === 'center') {
         targetX = 0;
-        targetRoomZ = -162;
-        targetYawVal = 0; // Face toward twilight horizon
+        targetRoomZ = -158.5;
+        targetYawVal = 0; // Face forward toward observation deck, terminals & horizon
       }
 
       // Smoothly fly camera to room interior
@@ -335,14 +360,15 @@ export const CorridorCameraRig: React.FC = () => {
   }, [mode, currentRoomId, closestBay]);
 
   // Main Render Frame: Locomotion, Free Look Interpolation, and Camera Rigging
-  useFrame(({ pointer }) => {
-    // 1. Evaluate active keyboard inputs for continuous 3D locomotion
+  useFrame((_, delta) => {
+    // 1. Evaluate active keyboard inputs for continuous 3D locomotion (frame-rate independent)
     const fwdX = -Math.sin(yaw.current);
     const fwdZ = -Math.cos(yaw.current);
     const rightX = Math.cos(yaw.current);
     const rightZ = -Math.sin(yaw.current);
 
-    const moveSpeed = 0.12;
+    // Consistent movement speed based on actual delta time
+    const moveSpeed = 11.0 * delta;
     let fwd = 0;
     let strafe = 0;
 
@@ -351,59 +377,38 @@ export const CorridorCameraRig: React.FC = () => {
     if (keysDown.current.has('KeyA')) strafe -= 1;
     if (keysDown.current.has('KeyD')) strafe += 1;
 
-    // Arrow Left / Right turn view
-    if (keysDown.current.has('ArrowLeft')) targetYaw.current += 0.035;
-    if (keysDown.current.has('ArrowRight')) targetYaw.current -= 0.035;
-
-    // Q / E turn view
-    if (keysDown.current.has('KeyQ')) targetYaw.current += 0.04;
-    if (keysDown.current.has('KeyE')) targetYaw.current -= 0.04;
+    // Arrow Left / Right turn view smoothly
+    if (keysDown.current.has('ArrowLeft') || keysDown.current.has('KeyQ')) targetYaw.current += 1.8 * delta;
+    if (keysDown.current.has('ArrowRight') || keysDown.current.has('KeyE')) targetYaw.current -= 1.8 * delta;
 
     if (fwd !== 0 || strafe !== 0) {
       if (mode === 'corridor') {
         targetPos.current.x += (fwdX * fwd + rightX * strafe) * moveSpeed;
         targetPos.current.z += (fwdZ * fwd + rightZ * strafe) * moveSpeed;
         // Keep within corridor width bounds
-        targetPos.current.x = Math.max(-3.0, Math.min(3.0, targetPos.current.x));
-        targetPos.current.z = Math.max(-155, Math.min(22, targetPos.current.z));
-        setTargetZ(targetPos.current.z);
+        targetPos.current.x = Math.max(-2.8, Math.min(2.8, targetPos.current.x));
+        targetPos.current.z = Math.max(-149.2, Math.min(22, targetPos.current.z));
       } else if (mode === 'room') {
-        // True 3D first-person walking in room
         targetPos.current.x += (fwdX * fwd + rightX * strafe) * moveSpeed;
         targetPos.current.z += (fwdZ * fwd + rightZ * strafe) * moveSpeed;
         clampRoomPosition(targetPos.current, currentRoomId);
       }
     }
 
-    // 2. Smoothly interpolate Euler angles (inertial dampening)
-    yaw.current += (targetYaw.current - yaw.current) * 0.12;
-    pitch.current += (targetPitch.current - pitch.current) * 0.12;
+    // 2. Snappy, smooth rotation dampening without sluggish lag
+    const rotLerp = Math.min(1, delta * 14);
+    yaw.current += (targetYaw.current - yaw.current) * rotLerp;
+    pitch.current += (targetPitch.current - pitch.current) * rotLerp;
 
-    // 3. Smoothly interpolate position (lerp)
+    // 3. Smooth position interpolation (lerp)
     if (mode !== 'transitioning') {
-      currentPos.current.lerp(targetPos.current, 0.1);
+      const posLerp = Math.min(1, delta * 10);
+      currentPos.current.lerp(targetPos.current, posLerp);
     }
 
-    // 4. Subtle mouse parallax bias when NOT actively dragging
-    const parallaxYaw = isDragging.current ? 0 : pointer.x * 0.08;
-    const parallaxPitch = isDragging.current ? 0 : pointer.y * 0.06;
-
-    // Optional gentle auto-glance bias towards door when walking near it in corridor
-    let autoGlanceYaw = 0;
-    if (
-      mode === 'corridor' &&
-      !isDragging.current &&
-      Math.abs(yaw.current) < 0.4 &&
-      closestBay &&
-      distanceToClosestBay < 6
-    ) {
-      const intensity = (1 - distanceToClosestBay / 6) * 0.22;
-      if (closestBay.doorSide === 'left') autoGlanceYaw = intensity;
-      else if (closestBay.doorSide === 'right') autoGlanceYaw = -intensity;
-    }
-
-    const effectiveYaw = yaw.current + parallaxYaw + autoGlanceYaw;
-    const effectivePitch = pitch.current + parallaxPitch;
+    // 4. Clean, level-headed viewing angles (NO erratic parallax or sudden head-jerking auto-glance)
+    const effectiveYaw = yaw.current;
+    const effectivePitch = pitch.current;
 
     // 5. Compute forward look direction vector from spherical angles
     const cosP = Math.cos(effectivePitch);
@@ -415,15 +420,15 @@ export const CorridorCameraRig: React.FC = () => {
     const dirY = sinP;
     const dirZ = -cosY * cosP;
 
-    // 6. LookAt target 10 units forward along viewing direction
-    const lookTarget = new THREE.Vector3(
+    // 6. LookAt target forward along viewing direction using reusable vector (no GC stutter)
+    lookTarget.current.set(
       currentPos.current.x + dirX * 10,
       currentPos.current.y + dirY * 10,
       currentPos.current.z + dirZ * 10
     );
 
     camera.position.copy(currentPos.current);
-    camera.lookAt(lookTarget);
+    camera.lookAt(lookTarget.current);
 
     // 7. Report Z position to context throttled to avoid React thrashing
     if (mode === 'corridor' && Math.abs(currentPos.current.z - lastReportedZ.current) > 0.15) {

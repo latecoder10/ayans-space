@@ -56,9 +56,9 @@ export const SemanticA11yTree: React.FC = () => {
 
       <h2>Contact & Communication</h2>
       <ul>
-        <li>Email: <a href="mailto:ayanpal104@gmail.com">ayanpal104@gmail.com</a></li>
-        <li>GitHub: <a href="https://github.com/AyanPal10">github.com/AyanPal10</a></li>
-        <li>LinkedIn: <a href="https://www.linkedin.com/in/ayan-pal">linkedin.com/in/ayan-pal</a></li>
+        <li>Email: <a href="mailto:palayan789@gmail.com">palayan789@gmail.com</a></li>
+        <li>GitHub: <a href="https://github.com/latecoder10">github.com/latecoder10</a></li>
+        <li>LinkedIn: <a href="https://www.linkedin.com/in/ayan-pal-00067b1b6">linkedin.com/in/ayan-pal-00067b1b6</a></li>
       </ul>
     </div>
   );
